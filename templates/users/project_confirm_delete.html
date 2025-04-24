@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}Delete Project - Edocebiv{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'project_list' %}">My Projects</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'project_detail' project.pk %}">{{ project.title }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Delete</li>
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header bg-danger text-white">
+            <h1 class="h3 mb-0">Delete Project</h1>
+        </div>
+        <div class="card-body">
+            <p class="lead">Are you sure you want to delete the project "{{ project.title }}"?</p>
+            <p class="text-danger"><strong>Warning:</strong> This action cannot be undone.</p>
+            
+            <form method="post">
+                {% csrf_token %}
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'project_detail' project.pk %}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-danger">Delete Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

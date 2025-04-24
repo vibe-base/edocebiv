@@ -22,4 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('allauth.urls')),  # django-allauth URLs
     path('', TemplateView.as_view(template_name='home.html'), name='home'),  # Home page
+    path('users/', include('users.urls')),  # Users app URLs
 ]

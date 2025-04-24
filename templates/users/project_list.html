@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}My Projects - Edocebiv{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>My Projects</h1>
+        <a href="{% url 'project_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create New Project
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if projects %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            {% for project in projects %}
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ project.title }}</h5>
+                            <p class="card-text text-muted small">
+                                Created: {{ project.created_at|date:"M d, Y" }}
+                            </p>
+                            <p class="card-text">
+                                {% if project.description %}
+                                    {{ project.description|truncatewords:20 }}
+                                {% else %}
+                                    <span class="text-muted">No description provided</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'project_detail' project.pk %}" class="btn btn-sm btn-outline-primary">View</a>
+                                <div>
+                                    <a href="{% url 'project_update' project.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    <a href="{% url 'project_delete' project.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <p>You don't have any projects yet.</p>
+            <a href="{% url 'project_create' %}" class="btn btn-primary">Create your first project</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
