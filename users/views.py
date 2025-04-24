@@ -127,7 +127,11 @@ def container_create(request, pk):
         if success:
             messages.success(request, 'Container created successfully!')
         else:
-            messages.error(request, 'Failed to create container. Please check the logs.')
+            # Provide a more detailed error message
+            messages.error(request,
+                'Failed to create container. This could be due to the Docker image not being available '
+                'or insufficient permissions. Please check that Docker is running properly and try again.'
+            )
 
     return redirect('project_detail', pk=project.pk)
 

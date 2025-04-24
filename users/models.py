@@ -44,7 +44,7 @@ class Project(models.Model):
                                        help_text="Current status of the container")
     container_created_at = models.DateTimeField(blank=True, null=True,
                                               help_text="When the container was created")
-    container_image = models.CharField(max_length=100, default="python:3.9-slim",
+    container_image = models.CharField(max_length=100, default="python:latest",
                                      help_text="Docker image used for the container")
 
     class Meta:
