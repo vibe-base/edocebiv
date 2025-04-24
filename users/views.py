@@ -585,93 +585,21 @@ def chat_with_openai(request, pk):
         # Reverse the order to have oldest first
         recent_messages = list(reversed(recent_messages))
 
+        # Create the MCP instance
+        from .file_operations_mcp import FileOperationsMCP
+        mcp = FileOperationsMCP(project, request.user)
+
         # Prepare the system message with context about the project
         system_message = f"You are an AI coding assistant helping with a project named '{project.title}'. "
 
         if project.description:
             system_message += f"Project description: {project.description}. "
 
+        # Add the MCP system message
+        system_message += mcp.get_system_message()
+
+        # Add additional guidance
         system_message += """
-You can use tools to interact with the codebase. To use a tool, include a code block with the tool name and arguments in JSON format:
-
-```tool
-{
-  "name": "tool_name",
-  "arguments": {
-    "arg1": "value1",
-    "arg2": "value2"
-  }
-}
-```
-
-Available tools:
-- update_file: Update the content of a file
-  Arguments: file_path, content
-- create_file: Create a new file
-  Arguments: file_path, content
-- delete_file: Delete a file
-  Arguments: file_path
-- read_file: Read the content of a file
-  Arguments: file_path
-- list_files: List files in a directory
-  Arguments: directory_path (optional, defaults to project root)
-
-Examples of using tools:
-
-1. To create a new file:
-```tool
-{
-  "name": "create_file",
-  "arguments": {
-    "file_path": "example.py",
-    "content": "def hello():\\n    print('Hello, world!')"
-  }
-}
-```
-
-2. To read an existing file:
-```tool
-{
-  "name": "read_file",
-  "arguments": {
-    "file_path": "example.py"
-  }
-}
-```
-
-3. To update a file:
-```tool
-{
-  "name": "update_file",
-  "arguments": {
-    "file_path": "example.py",
-    "content": "def hello():\\n    print('Hello, updated world!')"
-  }
-}
-```
-
-4. To list files in a directory:
-```tool
-{
-  "name": "list_files",
-  "arguments": {
-    "directory_path": ""
-  }
-}
-```
-
-5. To delete a file:
-```tool
-{
-  "name": "delete_file",
-  "arguments": {
-    "file_path": "example.py"
-  }
-}
-```
-
-When a user asks you to create or modify files, use these tools to help them. Always use the tools when appropriate rather than just describing what changes should be made.
-
 Provide concise, helpful responses focused on coding assistance.
 """
 
@@ -726,10 +654,8 @@ Provide concise, helpful responses focused on coding assistance.
         response_data = response.json()
         assistant_message = response_data['choices'][0]['message']['content']
 
-        # Process the message with the AI protocol
-        from .ai_protocol import AIProtocol
-        protocol = AIProtocol(project, request.user)
-        processed_message, tool_results = protocol.process_message(assistant_message)
+        # Process the message with the MCP
+        processed_message, tool_results = mcp.process_message(assistant_message)
 
         # Save the assistant's response to the database
         ChatMessage.objects.create(
