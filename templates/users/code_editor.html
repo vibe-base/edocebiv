@@ -1086,8 +1086,40 @@
     }
 
     // Save file
-    function saveFile() {
-        document.getElementById('editor-form').submit();
+    function saveFile(useAjax = false) {
+        if (useAjax) {
+            // Get form data
+            const form = document.getElementById('editor-form');
+            const filePath = form.querySelector('input[name="file_path"]').value;
+            const fileContent = form.querySelector('textarea[name="file_content"]').value;
+
+            // Save file via AJAX
+            fetch('{% url "file_save" project.pk %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: new URLSearchParams({
+                    'file_path': filePath,
+                    'file_content': fileContent
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    console.log('File saved successfully');
+                } else {
+                    console.error('Error saving file:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error saving file:', error);
+            });
+        } else {
+            // Submit the form (causes page reload)
+            document.getElementById('editor-form').submit();
+        }
     }
 
     // Add keyboard shortcut for saving (Ctrl+S)
@@ -1130,12 +1162,22 @@
                 return;
             }
 
-            // Save the file first
-            saveFile();
+            // Save the file first (using AJAX to avoid page reload)
+            saveFile(true);
 
             // Show running message
             addTerminalMessage(`Running file: ${currentFile}...`, 'command');
 
+            // Add a small delay to ensure the file is saved before running
+            setTimeout(() => {
+                // Continue with running the file
+                runFileAfterSave(currentFile);
+            }, 300);
+
+        };
+
+        // Function to run a file after it's been saved
+        function runFileAfterSave(filePath) {
             // Call the API to run the file
             fetch('{% url "run_file" project.pk %}', {
                 method: 'POST',
@@ -1144,7 +1186,7 @@
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({
-                    file_path: currentFile
+                    file_path: filePath
                 })
             })
             .then(response => response.json())
@@ -1178,7 +1220,7 @@
                 // Add error message
                 addTerminalMessage(`Error: ${error.message}`, 'error');
             });
-        };
+        }
 
         // Function to add a message to the terminal
         function addTerminalMessage(message, type) {
