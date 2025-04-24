@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}My Profile - Edocebiv{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">My Profile</h1>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Account Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Username:</strong> {{ user.username }}</p>
+                    <p><strong>Date Joined:</strong> {{ user.date_joined|date:"F d, Y" }}</p>
+                    <p><strong>Last Login:</strong> {{ user.last_login|date:"F d, Y" }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">API Settings</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.openai_api_key.id_for_label }}" class="form-label">OpenAI API Key</label>
+                            {{ form.openai_api_key }}
+                            <div class="form-text">{{ form.openai_api_key.help_text }}</div>
+                            {% if form.openai_api_key.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.openai_api_key.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading"><i class="bi bi-info-circle"></i> About API Keys</h6>
+                            <p class="mb-0">Your API key is stored securely and is used to access OpenAI services. You can get an API key from the <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI dashboard</a>.</p>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

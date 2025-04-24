@@ -2,6 +2,10 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # Profile URLs
+    path('profile/', views.profile_view, name='profile_view'),
+
+    # Project URLs
     path('projects/', views.project_list, name='project_list'),
     path('projects/create/', views.project_create, name='project_create'),
     path('projects/<int:pk>/', views.project_detail, name='project_detail'),

@@ -2,8 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
-from .models import Project
-from .forms import ProjectForm
+from .models import Project, UserProfile
+from .forms import ProjectForm, UserProfileForm
 
 @login_required
 def project_list(request):
@@ -67,3 +67,22 @@ def project_detail(request, pk):
     """View to display details of a specific project."""
     project = get_object_or_404(Project, pk=pk, user=request.user)
     return render(request, 'users/project_detail.html', {'project': project})
+
+@login_required
+def profile_view(request):
+    """View to display and update user profile."""
+    profile = request.user.profile
+
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, instance=profile)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Your profile has been updated successfully!')
+            return redirect('profile_view')
+    else:
+        form = UserProfileForm(instance=profile)
+
+    return render(request, 'users/profile.html', {
+        'form': form,
+        'profile': profile
+    })
