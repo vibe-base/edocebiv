@@ -1,5 +1,3 @@
-{% extends 'base.html' %}
-
 {% block title %}Code Editor - {{ project.title }} - Edocebiv{% endblock %}
 
 {% block extra_css %}
@@ -17,43 +15,101 @@
         --editor-active-line: #282828;
         --editor-widget-bg: #252526;
         --editor-widget-border: #454545;
+        --header-bg: #333333;
+        --tab-bg: #2d2d2d;
+        --tab-active-bg: #1e1e1e;
     }
-    
-    body {
+
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
         overflow: hidden;
     }
-    
+
+    .navbar {
+        display: none; /* Hide the default navbar */
+    }
+
     .editor-container {
         display: flex;
-        height: calc(100vh - 56px);
+        flex-direction: column;
+        height: 100vh;
         background-color: var(--editor-bg);
         color: var(--editor-text);
     }
-    
+
+    .editor-header {
+        background-color: var(--header-bg);
+        height: 35px;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        border-bottom: 1px solid var(--editor-widget-border);
+    }
+
+    .editor-header-left {
+        display: flex;
+        align-items: center;
+    }
+
+    .editor-header-center {
+        flex: 1;
+        text-align: center;
+        font-size: 14px;
+    }
+
+    .editor-header-right {
+        display: flex;
+        align-items: center;
+    }
+
+    .editor-header-button {
+        background: none;
+        border: none;
+        color: var(--editor-text);
+        cursor: pointer;
+        padding: 5px;
+        margin: 0 2px;
+        font-size: 14px;
+    }
+
+    .editor-header-button:hover {
+        color: white;
+    }
+
+    .editor-main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+    }
+
     .sidebar {
         width: 250px;
         background-color: var(--sidebar-bg);
         overflow-y: auto;
         border-right: 1px solid var(--editor-widget-border);
+        flex-shrink: 0;
     }
-    
+
     .main-content {
         flex: 1;
         display: flex;
         flex-direction: column;
         overflow: hidden;
     }
-    
+
     .editor {
         flex: 1;
-        padding: 10px;
         overflow: auto;
         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
         font-size: 14px;
         line-height: 1.5;
         tab-size: 4;
+        padding: 0;
+        position: relative;
     }
-    
+
     .editor textarea {
         width: 100%;
         height: 100%;
@@ -65,12 +121,13 @@
         font-size: inherit;
         line-height: inherit;
         padding: 10px;
+        box-sizing: border-box;
     }
-    
+
     .editor textarea:focus {
         outline: none;
     }
-    
+
     .status-bar {
         height: 22px;
         background-color: var(--editor-widget-bg);
@@ -81,37 +138,49 @@
         font-size: 12px;
         color: var(--editor-text);
     }
-    
+
     .file-explorer {
-        padding: 10px 0;
+        padding: 0;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
-    
+
     .file-explorer-header {
         padding: 5px 10px;
-        font-weight: bold;
+        font-weight: normal;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #bbbbbb;
     }
-    
+
     .file-explorer-actions {
         display: flex;
         gap: 5px;
     }
-    
+
     .file-explorer-actions button {
         background: none;
         border: none;
         color: var(--editor-text);
         cursor: pointer;
         padding: 0;
-        font-size: 14px;
+        font-size: 12px;
     }
-    
+
     .file-explorer-actions button:hover {
         color: white;
     }
-    
+
+    #file-tree {
+        overflow-y: auto;
+        flex: 1;
+    }
+
     .file-item {
         padding: 3px 10px 3px 20px;
         cursor: pointer;
@@ -120,79 +189,94 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        font-size: 13px;
+        height: 22px;
     }
-    
+
     .file-item:hover {
         background-color: var(--sidebar-hover);
     }
-    
+
     .file-item.active {
         background-color: var(--editor-selection);
     }
-    
+
     .file-item i {
         margin-right: 5px;
+        font-size: 14px;
     }
-    
+
     .folder-item {
         padding: 3px 10px;
         cursor: pointer;
         display: flex;
         align-items: center;
+        font-size: 13px;
+        height: 22px;
     }
-    
+
     .folder-item:hover {
         background-color: var(--sidebar-hover);
     }
-    
+
     .folder-item i {
         margin-right: 5px;
+        font-size: 14px;
     }
-    
+
     .folder-contents {
         margin-left: 15px;
     }
-    
+
     .editor-tabs {
-        background-color: var(--sidebar-bg);
+        background-color: var(--editor-bg);
         display: flex;
         border-bottom: 1px solid var(--editor-widget-border);
         overflow-x: auto;
         white-space: nowrap;
+        height: 35px;
     }
-    
+
     .editor-tab {
-        padding: 5px 10px;
-        background-color: var(--sidebar-item);
+        padding: 0 10px;
+        background-color: var(--tab-bg);
         border-right: 1px solid var(--editor-widget-border);
         cursor: pointer;
         display: flex;
         align-items: center;
         max-width: 150px;
+        height: 35px;
+        font-size: 13px;
     }
-    
+
     .editor-tab.active {
-        background-color: var(--editor-bg);
+        background-color: var(--tab-active-bg);
+        border-top: 1px solid #007acc;
+        border-bottom: none;
     }
-    
+
     .editor-tab i {
         margin-right: 5px;
+        font-size: 14px;
     }
-    
+
     .editor-tab-name {
         overflow: hidden;
         text-overflow: ellipsis;
+        white-space: nowrap;
     }
-    
+
     .editor-tab-close {
-        margin-left: 5px;
+        margin-left: 8px;
         opacity: 0.5;
+        font-size: 16px;
+        line-height: 1;
     }
-    
+
     .editor-tab:hover .editor-tab-close {
         opacity: 1;
     }
-    
+
     .welcome-screen {
         display: flex;
         flex-direction: column;
@@ -200,39 +284,59 @@
         justify-content: center;
         height: 100%;
         color: var(--editor-line-number);
+        padding: 20px;
+        box-sizing: border-box;
     }
-    
+
     .welcome-screen h2 {
         margin-bottom: 20px;
+        font-weight: normal;
+        font-size: 24px;
     }
-    
+
     .welcome-screen p {
-        margin-bottom: 10px;
+        margin-bottom: 15px;
         max-width: 600px;
         text-align: center;
+        line-height: 1.5;
     }
-    
+
     .container-status {
-        margin-top: 20px;
-        padding: 10px;
-        border-radius: 5px;
+        margin-top: 30px;
+        padding: 15px;
+        border-radius: 3px;
+        font-size: 14px;
+        max-width: 500px;
+        width: 100%;
     }
-    
+
     .container-status.running {
-        background-color: rgba(0, 128, 0, 0.2);
-        border: 1px solid rgba(0, 128, 0, 0.3);
+        background-color: rgba(0, 128, 0, 0.1);
+        border: 1px solid rgba(0, 128, 0, 0.2);
     }
-    
+
     .container-status.stopped {
-        background-color: rgba(128, 128, 128, 0.2);
-        border: 1px solid rgba(128, 128, 128, 0.3);
+        background-color: rgba(128, 128, 128, 0.1);
+        border: 1px solid rgba(128, 128, 128, 0.2);
     }
-    
+
     .container-status.not-available {
-        background-color: rgba(255, 0, 0, 0.2);
-        border: 1px solid rgba(255, 0, 0, 0.3);
+        background-color: rgba(255, 0, 0, 0.1);
+        border: 1px solid rgba(255, 0, 0, 0.2);
     }
-    
+
+    .file-explorer-header {
+        padding: 5px 10px;
+        font-weight: normal;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #bbbbbb;
+    }
+
     /* Modal styles */
     .modal {
         display: none;
@@ -244,70 +348,91 @@
         height: 100%;
         background-color: rgba(0, 0, 0, 0.5);
     }
-    
+
     .modal-content {
         background-color: var(--sidebar-bg);
         margin: 15% auto;
         padding: 20px;
         border: 1px solid var(--editor-widget-border);
-        width: 300px;
+        width: 400px;
         color: var(--editor-text);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
     }
-    
+
     .modal-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 15px;
+        border-bottom: 1px solid var(--editor-widget-border);
+        padding-bottom: 10px;
     }
-    
+
+    .modal-header h4 {
+        margin: 0;
+        font-weight: normal;
+        font-size: 16px;
+    }
+
     .modal-close {
         color: var(--editor-text);
         font-size: 20px;
         font-weight: bold;
         cursor: pointer;
+        opacity: 0.7;
     }
-    
+
+    .modal-close:hover {
+        opacity: 1;
+    }
+
     .modal-body {
-        margin-bottom: 15px;
+        margin-bottom: 20px;
     }
-    
+
     .modal-footer {
         display: flex;
         justify-content: flex-end;
         gap: 10px;
+        border-top: 1px solid var(--editor-widget-border);
+        padding-top: 15px;
     }
-    
+
     .modal input {
         width: 100%;
-        padding: 5px;
-        margin-bottom: 10px;
+        padding: 8px 10px;
+        margin-bottom: 15px;
         background-color: var(--editor-bg);
         color: var(--editor-text);
         border: 1px solid var(--editor-widget-border);
+        border-radius: 2px;
+        font-size: 14px;
     }
-    
+
     .modal input:focus {
         outline: none;
-        border-color: var(--editor-selection);
+        border-color: #007acc;
     }
-    
+
     .modal-btn {
-        padding: 5px 10px;
-        background-color: var(--editor-selection);
-        color: var(--editor-text);
+        padding: 6px 12px;
+        background-color: #007acc;
+        color: white;
         border: none;
         cursor: pointer;
+        border-radius: 2px;
+        font-size: 13px;
     }
-    
+
     .modal-btn:hover {
         background-color: #0e639c;
     }
-    
+
     .modal-btn.cancel {
         background-color: var(--sidebar-item);
     }
-    
+
     .modal-btn.cancel:hover {
         background-color: var(--sidebar-hover);
     }
@@ -316,77 +441,111 @@
 
 {% block content %}
 <div class="editor-container">
-    <!-- Sidebar with file explorer -->
-    <div class="sidebar">
-        <div class="file-explorer">
-            <div class="file-explorer-header">
-                <span>EXPLORER: {{ project.title }}</span>
-                <div class="file-explorer-actions">
-                    <button onclick="showNewFileModal()" title="New File"><i class="bi bi-file-earmark-plus"></i></button>
-                    <button onclick="showNewFolderModal()" title="New Folder"><i class="bi bi-folder-plus"></i></button>
-                    <button onclick="refreshFileExplorer()" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
-                </div>
-            </div>
-            
-            <div id="file-tree">
-                {% include 'users/partials/file_tree.html' with items=directory_structure parent_path="" %}
-            </div>
+    <!-- Header with browser-like controls -->
+    <div class="editor-header">
+        <div class="editor-header-left">
+            <a href="{% url 'project_list' %}" class="editor-header-button" title="Back to Projects">
+                <i class="bi bi-arrow-left"></i>
+            </a>
+            <a href="{% url 'project_detail' project.pk %}" class="editor-header-button" title="Project Details">
+                <i class="bi bi-info-circle"></i>
+            </a>
+        </div>
+        <div class="editor-header-center">
+            Edocebiv - {{ project.title }}
+        </div>
+        <div class="editor-header-right">
+            {% if docker_available and project.has_container %}
+                {% if container_running %}
+                    <span class="editor-header-button" title="Container Running">
+                        <i class="bi bi-circle-fill text-success"></i>
+                    </span>
+                {% else %}
+                    <span class="editor-header-button" title="Container Stopped">
+                        <i class="bi bi-circle-fill text-secondary"></i>
+                    </span>
+                {% endif %}
+            {% endif %}
+            <span class="editor-header-button" title="Your Account">
+                <i class="bi bi-person-circle"></i>
+            </span>
         </div>
     </div>
-    
-    <!-- Main content area with editor -->
-    <div class="main-content">
-        <!-- Editor tabs -->
-        <div class="editor-tabs" id="editor-tabs">
-            {% if current_file %}
-                <div class="editor-tab active" data-path="{{ current_file.path }}">
-                    <i class="bi bi-file-earmark-code"></i>
-                    <span class="editor-tab-name">{{ current_file.name }}</span>
-                    <span class="editor-tab-close" onclick="closeTab('{{ current_file.path }}')">×</span>
+
+    <!-- Main editor area -->
+    <div class="editor-main">
+        <!-- Sidebar with file explorer -->
+        <div class="sidebar">
+            <div class="file-explorer">
+                <div class="file-explorer-header">
+                    <span>EXPLORER: {{ project.title }}</span>
+                    <div class="file-explorer-actions">
+                        <button onclick="showNewFileModal()" title="New File"><i class="bi bi-file-earmark-plus"></i></button>
+                        <button onclick="showNewFolderModal()" title="New Folder"><i class="bi bi-folder-plus"></i></button>
+                        <button onclick="refreshFileExplorer()" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+                    </div>
                 </div>
-            {% endif %}
+
+                <div id="file-tree">
+                    {% include 'users/partials/file_tree.html' with items=directory_structure parent_path="" %}
+                </div>
+            </div>
         </div>
-        
-        <!-- Editor area -->
-        <div class="editor" id="editor-area">
-            {% if file_content is not None %}
-                <form id="editor-form" method="post" action="{% url 'file_save' project.pk %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="file_path" value="{{ current_file.path }}">
-                    <textarea id="editor-textarea" name="file_content" spellcheck="false">{{ file_content }}</textarea>
-                </form>
-            {% else %}
-                <div class="welcome-screen">
-                    <h2>Welcome to the {{ project.title }} Code Editor</h2>
-                    <p>Select a file from the explorer to start editing, or create a new file.</p>
-                    
-                    {% if docker_available %}
-                        {% if container_running %}
-                            <div class="container-status running">
-                                <i class="bi bi-check-circle"></i> Container is running. Your code changes will be available to the container.
-                            </div>
+
+        <!-- Main content area with editor -->
+        <div class="main-content">
+            <!-- Editor tabs -->
+            <div class="editor-tabs" id="editor-tabs">
+                {% if current_file %}
+                    <div class="editor-tab active" data-path="{{ current_file.path }}">
+                        <i class="bi bi-file-earmark-code"></i>
+                        <span class="editor-tab-name">{{ current_file.name }}</span>
+                        <span class="editor-tab-close" onclick="closeTab('{{ current_file.path }}')">×</span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Editor area -->
+            <div class="editor" id="editor-area">
+                {% if file_content is not None %}
+                    <form id="editor-form" method="post" action="{% url 'file_save' project.pk %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="file_path" value="{{ current_file.path }}">
+                        <textarea id="editor-textarea" name="file_content" spellcheck="false">{{ file_content }}</textarea>
+                    </form>
+                {% else %}
+                    <div class="welcome-screen">
+                        <h2>Welcome to the {{ project.title }} Code Editor</h2>
+                        <p>Select a file from the explorer to start editing, or create a new file.</p>
+
+                        {% if docker_available %}
+                            {% if container_running %}
+                                <div class="container-status running">
+                                    <i class="bi bi-check-circle"></i> Container is running. Your code changes will be available to the container.
+                                </div>
+                            {% else %}
+                                <div class="container-status stopped">
+                                    <i class="bi bi-exclamation-circle"></i> Container is not running. Start the container to run your code.
+                                </div>
+                            {% endif %}
                         {% else %}
-                            <div class="container-status stopped">
-                                <i class="bi bi-exclamation-circle"></i> Container is not running. Start the container to run your code.
+                            <div class="container-status not-available">
+                                <i class="bi bi-x-circle"></i> Docker is not available. Please make sure Docker is running.
                             </div>
                         {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Status bar -->
+            <div class="status-bar">
+                <div class="status-item">
+                    {% if current_file %}
+                        {{ current_file.path }} | {{ current_file.extension|upper }}
                     {% else %}
-                        <div class="container-status not-available">
-                            <i class="bi bi-x-circle"></i> Docker is not available. Please make sure Docker is running.
-                        </div>
+                        Ready
                     {% endif %}
                 </div>
-            {% endif %}
-        </div>
-        
-        <!-- Status bar -->
-        <div class="status-bar">
-            <div class="status-item">
-                {% if current_file %}
-                    {{ current_file.path }} | {{ current_file.extension|upper }}
-                {% else %}
-                    Ready
-                {% endif %}
             </div>
         </div>
     </div>
@@ -481,17 +640,17 @@
             element.querySelector('i').classList.add('bi-folder');
         }
     }
-    
+
     // Open file in editor
     function openFile(path) {
         window.location.href = "{% url 'code_editor' project.pk %}?file=" + encodeURIComponent(path);
     }
-    
+
     // Save file
     function saveFile() {
         document.getElementById('editor-form').submit();
     }
-    
+
     // Add keyboard shortcut for saving (Ctrl+S)
     document.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -499,28 +658,28 @@
             saveFile();
         }
     });
-    
+
     // Modal functionality
     function showModal(modalId) {
         document.getElementById(modalId).style.display = 'block';
     }
-    
+
     function closeModal(modalId) {
         document.getElementById(modalId).style.display = 'none';
     }
-    
+
     function showNewFileModal(parentPath = '') {
         document.getElementById('new-file-parent-path').value = parentPath;
         showModal('new-file-modal');
         document.getElementById('new-file-name').focus();
     }
-    
+
     function showNewFolderModal(parentPath = '') {
         document.getElementById('new-folder-parent-path').value = parentPath;
         showModal('new-folder-modal');
         document.getElementById('new-folder-name').focus();
     }
-    
+
     function showRenameModal(path, currentName) {
         document.getElementById('rename-file-path').value = path;
         document.getElementById('rename-new-name').value = currentName;
@@ -528,29 +687,29 @@
         document.getElementById('rename-new-name').focus();
         document.getElementById('rename-new-name').select();
     }
-    
+
     function showDeleteModal(path, name) {
         document.getElementById('delete-file-path').value = path;
         document.getElementById('delete-file-name').textContent = name;
         showModal('delete-modal');
     }
-    
+
     // File operations
     function createNewFile() {
         const name = document.getElementById('new-file-name').value.trim();
         const parentPath = document.getElementById('new-file-parent-path').value;
-        
+
         if (!name) {
             alert('Please enter a file name');
             return;
         }
-        
+
         const formData = new FormData();
         formData.append('name', name);
         formData.append('parent_path', parentPath);
         formData.append('is_directory', 'false');
         formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-        
+
         fetch('{% url "file_create" project.pk %}', {
             method: 'POST',
             body: formData
@@ -571,22 +730,22 @@
             alert('Error creating file');
         });
     }
-    
+
     function createNewFolder() {
         const name = document.getElementById('new-folder-name').value.trim();
         const parentPath = document.getElementById('new-folder-parent-path').value;
-        
+
         if (!name) {
             alert('Please enter a folder name');
             return;
         }
-        
+
         const formData = new FormData();
         formData.append('name', name);
         formData.append('parent_path', parentPath);
         formData.append('is_directory', 'true');
         formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-        
+
         fetch('{% url "file_create" project.pk %}', {
             method: 'POST',
             body: formData
@@ -605,21 +764,21 @@
             alert('Error creating folder');
         });
     }
-    
+
     function renameFile() {
         const newName = document.getElementById('rename-new-name').value.trim();
         const filePath = document.getElementById('rename-file-path').value;
-        
+
         if (!newName) {
             alert('Please enter a new name');
             return;
         }
-        
+
         const formData = new FormData();
         formData.append('file_path', filePath);
         formData.append('new_name', newName);
         formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-        
+
         fetch('{% url "file_rename" project.pk %}', {
             method: 'POST',
             body: formData
@@ -629,7 +788,7 @@
             if (data.status === 'success') {
                 closeModal('rename-modal');
                 refreshFileExplorer();
-                
+
                 // If the renamed file is currently open, redirect to the new path
                 const currentPath = '{{ current_file.path|default:"" }}';
                 if (currentPath === filePath) {
@@ -644,14 +803,14 @@
             alert('Error renaming file');
         });
     }
-    
+
     function deleteFile() {
         const filePath = document.getElementById('delete-file-path').value;
-        
+
         const formData = new FormData();
         formData.append('file_path', filePath);
         formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-        
+
         fetch('{% url "file_delete" project.pk %}', {
             method: 'POST',
             body: formData
@@ -661,7 +820,7 @@
             if (data.status === 'success') {
                 closeModal('delete-modal');
                 refreshFileExplorer();
-                
+
                 // If the deleted file is currently open, redirect to the editor home
                 const currentPath = '{{ current_file.path|default:"" }}';
                 if (currentPath === filePath) {
@@ -676,30 +835,30 @@
             alert('Error deleting file');
         });
     }
-    
+
     function refreshFileExplorer() {
         window.location.reload();
     }
-    
+
     // Tab functionality
     function closeTab(path) {
         window.location.href = "{% url 'code_editor' project.pk %}";
     }
-    
+
     // Context menu for files and folders
     document.addEventListener('contextmenu', function(e) {
         const fileItem = e.target.closest('.file-item');
         const folderItem = e.target.closest('.folder-item');
-        
+
         if (fileItem || folderItem) {
             e.preventDefault();
-            
+
             // Remove any existing context menu
             const existingMenu = document.querySelector('.context-menu');
             if (existingMenu) {
                 existingMenu.remove();
             }
-            
+
             const contextMenu = document.createElement('div');
             contextMenu.className = 'context-menu';
             contextMenu.style.position = 'absolute';
@@ -709,11 +868,11 @@
             contextMenu.style.border = '1px solid var(--editor-widget-border)';
             contextMenu.style.padding = '5px 0';
             contextMenu.style.zIndex = '1000';
-            
+
             if (fileItem) {
                 const path = fileItem.getAttribute('data-path');
                 const name = fileItem.getAttribute('data-name');
-                
+
                 const openOption = document.createElement('div');
                 openOption.textContent = 'Open';
                 openOption.style.padding = '5px 10px';
@@ -728,7 +887,7 @@
                 openOption.addEventListener('mouseout', function() {
                     this.style.backgroundColor = '';
                 });
-                
+
                 const renameOption = document.createElement('div');
                 renameOption.textContent = 'Rename';
                 renameOption.style.padding = '5px 10px';
@@ -743,7 +902,7 @@
                 renameOption.addEventListener('mouseout', function() {
                     this.style.backgroundColor = '';
                 });
-                
+
                 const deleteOption = document.createElement('div');
                 deleteOption.textContent = 'Delete';
                 deleteOption.style.padding = '5px 10px';
@@ -758,14 +917,14 @@
                 deleteOption.addEventListener('mouseout', function() {
                     this.style.backgroundColor = '';
                 });
-                
+
                 contextMenu.appendChild(openOption);
                 contextMenu.appendChild(renameOption);
                 contextMenu.appendChild(deleteOption);
             } else if (folderItem) {
                 const path = folderItem.getAttribute('data-path');
                 const name = folderItem.getAttribute('data-name');
-                
+
                 const newFileOption = document.createElement('div');
                 newFileOption.textContent = 'New File';
                 newFileOption.style.padding = '5px 10px';
@@ -780,7 +939,7 @@
                 newFileOption.addEventListener('mouseout', function() {
                     this.style.backgroundColor = '';
                 });
-                
+
                 const newFolderOption = document.createElement('div');
                 newFolderOption.textContent = 'New Folder';
                 newFolderOption.style.padding = '5px 10px';
@@ -795,7 +954,7 @@
                 newFolderOption.addEventListener('mouseout', function() {
                     this.style.backgroundColor = '';
                 });
-                
+
                 const renameOption = document.createElement('div');
                 renameOption.textContent = 'Rename';
                 renameOption.style.padding = '5px 10px';
@@ -810,7 +969,7 @@
                 renameOption.addEventListener('mouseout', function() {
                     this.style.backgroundColor = '';
                 });
-                
+
                 const deleteOption = document.createElement('div');
                 deleteOption.textContent = 'Delete';
                 deleteOption.style.padding = '5px 10px';
@@ -825,15 +984,15 @@
                 deleteOption.addEventListener('mouseout', function() {
                     this.style.backgroundColor = '';
                 });
-                
+
                 contextMenu.appendChild(newFileOption);
                 contextMenu.appendChild(newFolderOption);
                 contextMenu.appendChild(renameOption);
                 contextMenu.appendChild(deleteOption);
             }
-            
+
             document.body.appendChild(contextMenu);
-            
+
             // Close the context menu when clicking elsewhere
             document.addEventListener('click', function closeContextMenu() {
                 contextMenu.remove();
@@ -841,7 +1000,7 @@
             });
         }
     });
-    
+
     // Close context menu when clicking elsewhere or pressing Escape
     document.addEventListener('click', function(e) {
         const contextMenu = document.querySelector('.context-menu');
@@ -849,7 +1008,7 @@
             contextMenu.remove();
         }
     });
-    
+
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             const contextMenu = document.querySelector('.context-menu');
