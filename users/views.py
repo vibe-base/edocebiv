@@ -589,8 +589,8 @@ def chat_with_openai(request, pk):
         recent_messages = list(reversed(recent_messages))
 
         # Create the OpenAI MCP instance
-        from .file_operations_openai_mcp import FileOperationsOpenAIMCP
-        mcp = FileOperationsOpenAIMCP(project, request.user)
+        from .file_operations_fixed import FileOperationsMCP
+        mcp = FileOperationsMCP(project, request.user)
 
         # Prepare the system message with context about the project
         system_message = f"You are an AI coding assistant helping with a project named '{project.title}'. "
