@@ -33,8 +33,12 @@ class FileOperations(MCP):
         logger.info(f"Creating file: {file_path}")
 
         try:
+            # Normalize the file path to handle any path traversal attempts
+            # Remove any leading slashes to ensure it's relative to the project root
+            normalized_path = file_path.lstrip('/')
+
             # Security check: make sure the file is within the project directory
-            full_path = os.path.join(self.data_dir, file_path)
+            full_path = os.path.join(self.data_dir, normalized_path)
             if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
                 return {
                     "status": "error",
@@ -45,7 +49,7 @@ class FileOperations(MCP):
             if os.path.exists(full_path):
                 return {
                     "status": "error",
-                    "message": f"File {file_path} already exists."
+                    "message": f"File {normalized_path} already exists."
                 }
 
             # Create directory if it doesn't exist
@@ -57,8 +61,8 @@ class FileOperations(MCP):
 
             return {
                 "status": "success",
-                "message": f"File {file_path} created successfully.",
-                "file_path": file_path
+                "message": f"File {normalized_path} created successfully.",
+                "file_path": normalized_path
             }
 
         except Exception as e:
@@ -79,8 +83,12 @@ class FileOperations(MCP):
         logger.info(f"Updating file: {file_path}")
 
         try:
+            # Normalize the file path to handle any path traversal attempts
+            # Remove any leading slashes to ensure it's relative to the project root
+            normalized_path = file_path.lstrip('/')
+
             # Security check: make sure the file is within the project directory
-            full_path = os.path.join(self.data_dir, file_path)
+            full_path = os.path.join(self.data_dir, normalized_path)
             if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
                 return {
                     "status": "error",
@@ -91,14 +99,14 @@ class FileOperations(MCP):
             if not os.path.exists(full_path):
                 return {
                     "status": "error",
-                    "message": f"File {file_path} does not exist."
+                    "message": f"File {normalized_path} does not exist."
                 }
 
             # Check if it's a directory
             if os.path.isdir(full_path):
                 return {
                     "status": "error",
-                    "message": f"{file_path} is a directory, not a file."
+                    "message": f"{normalized_path} is a directory, not a file."
                 }
 
             # Write the file
@@ -107,8 +115,8 @@ class FileOperations(MCP):
 
             return {
                 "status": "success",
-                "message": f"File {file_path} updated successfully.",
-                "file_path": file_path
+                "message": f"File {normalized_path} updated successfully.",
+                "file_path": normalized_path
             }
 
         except Exception as e:
@@ -128,8 +136,12 @@ class FileOperations(MCP):
         logger.info(f"Deleting file or directory: {file_path}")
 
         try:
+            # Normalize the file path to handle any path traversal attempts
+            # Remove any leading slashes to ensure it's relative to the project root
+            normalized_path = file_path.lstrip('/')
+
             # Security check: make sure the file is within the project directory
-            full_path = os.path.join(self.data_dir, file_path)
+            full_path = os.path.join(self.data_dir, normalized_path)
             if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
                 return {
                     "status": "error",
@@ -140,21 +152,21 @@ class FileOperations(MCP):
             if not os.path.exists(full_path):
                 return {
                     "status": "error",
-                    "message": f"File {file_path} does not exist."
+                    "message": f"File {normalized_path} does not exist."
                 }
 
             # Delete the file or directory
             if os.path.isdir(full_path):
                 shutil.rmtree(full_path)
-                message = f"Directory {file_path} deleted successfully."
+                message = f"Directory {normalized_path} deleted successfully."
             else:
                 os.remove(full_path)
-                message = f"File {file_path} deleted successfully."
+                message = f"File {normalized_path} deleted successfully."
 
             return {
                 "status": "success",
                 "message": message,
-                "file_path": file_path
+                "file_path": normalized_path
             }
 
         except Exception as e:
@@ -174,8 +186,12 @@ class FileOperations(MCP):
         logger.info(f"Reading file: {file_path}")
 
         try:
+            # Normalize the file path to handle any path traversal attempts
+            # Remove any leading slashes to ensure it's relative to the project root
+            normalized_path = file_path.lstrip('/')
+
             # Security check: make sure the file is within the project directory
-            full_path = os.path.join(self.data_dir, file_path)
+            full_path = os.path.join(self.data_dir, normalized_path)
             if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
                 return {
                     "status": "error",
@@ -186,14 +202,14 @@ class FileOperations(MCP):
             if not os.path.exists(full_path):
                 return {
                     "status": "error",
-                    "message": f"File {file_path} does not exist."
+                    "message": f"File {normalized_path} does not exist."
                 }
 
             # Check if it's a directory
             if os.path.isdir(full_path):
                 return {
                     "status": "error",
-                    "message": f"{file_path} is a directory, not a file."
+                    "message": f"{normalized_path} is a directory, not a file."
                 }
 
             # Read the file
@@ -202,8 +218,8 @@ class FileOperations(MCP):
 
             return {
                 "status": "success",
-                "message": f"File {file_path} read successfully.",
-                "file_path": file_path,
+                "message": f"File {normalized_path} read successfully.",
+                "file_path": normalized_path,
                 "content": content
             }
 
@@ -224,8 +240,12 @@ class FileOperations(MCP):
         logger.info(f"Listing files in directory: {directory_path}")
 
         try:
+            # Normalize the directory path to handle any path traversal attempts
+            # Remove any leading slashes to ensure it's relative to the project root
+            normalized_path = directory_path.lstrip('/')
+
             # Security check: make sure the directory is within the project directory
-            full_path = os.path.join(self.data_dir, directory_path)
+            full_path = os.path.join(self.data_dir, normalized_path)
             if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
                 return {
                     "status": "error",
@@ -236,20 +256,20 @@ class FileOperations(MCP):
             if not os.path.exists(full_path):
                 return {
                     "status": "error",
-                    "message": f"Directory {directory_path} does not exist."
+                    "message": f"Directory {normalized_path} does not exist."
                 }
 
             # Check if it's a directory
             if not os.path.isdir(full_path):
                 return {
                     "status": "error",
-                    "message": f"{directory_path} is a file, not a directory."
+                    "message": f"{normalized_path} is a file, not a directory."
                 }
 
             # List files and directories
             items = []
             for item in os.listdir(full_path):
-                item_path = os.path.join(directory_path, item)
+                item_path = os.path.join(normalized_path, item)
                 item_full_path = os.path.join(self.data_dir, item_path)
 
                 # Skip hidden files
@@ -269,8 +289,8 @@ class FileOperations(MCP):
 
             return {
                 "status": "success",
-                "message": f"Directory {directory_path} listed successfully.",
-                "directory_path": directory_path,
+                "message": f"Directory {normalized_path} listed successfully.",
+                "directory_path": normalized_path,
                 "items": items
             }
 
@@ -291,8 +311,12 @@ class FileOperations(MCP):
         logger.info(f"Running file: {file_path}")
 
         try:
+            # Normalize the file path to handle any path traversal attempts
+            # Remove any leading slashes to ensure it's relative to the project root
+            normalized_path = file_path.lstrip('/')
+
             # Security check: make sure the file is within the project directory
-            full_path = os.path.join(self.data_dir, file_path)
+            full_path = os.path.join(self.data_dir, normalized_path)
             if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
                 return {
                     "status": "error",
@@ -303,14 +327,14 @@ class FileOperations(MCP):
             if not os.path.exists(full_path):
                 return {
                     "status": "error",
-                    "message": f"File {file_path} does not exist."
+                    "message": f"File {normalized_path} does not exist."
                 }
 
             # Check if it's a directory
             if os.path.isdir(full_path):
                 return {
                     "status": "error",
-                    "message": f"{file_path} is a directory, not a file."
+                    "message": f"{normalized_path} is a directory, not a file."
                 }
 
             # Check if the container is running
@@ -322,11 +346,11 @@ class FileOperations(MCP):
                 }
 
             # Determine how to run the file based on its extension
-            _, ext = os.path.splitext(file_path)
+            _, ext = os.path.splitext(normalized_path)
             ext = ext.lower()
 
             # Container path to the file
-            container_file_path = f"/app/data/{file_path}"
+            container_file_path = f"/app/data/{normalized_path}"
 
             # Command to run based on file extension
             command = None
@@ -344,15 +368,15 @@ class FileOperations(MCP):
                 command = f"perl {container_file_path}"
             elif ext == '.java':
                 # For Java, we need to compile first
-                java_class = os.path.basename(file_path).replace('.java', '')
+                java_class = os.path.basename(normalized_path).replace('.java', '')
                 command = f"cd $(dirname {container_file_path}) && javac {os.path.basename(container_file_path)} && java {java_class}"
             elif ext == '.c':
                 # For C, we need to compile first
-                c_out = os.path.basename(file_path).replace('.c', '')
+                c_out = os.path.basename(normalized_path).replace('.c', '')
                 command = f"cd $(dirname {container_file_path}) && gcc {os.path.basename(container_file_path)} -o {c_out} && ./{c_out}"
             elif ext == '.cpp':
                 # For C++, we need to compile first
-                cpp_out = os.path.basename(file_path).replace('.cpp', '')
+                cpp_out = os.path.basename(normalized_path).replace('.cpp', '')
                 command = f"cd $(dirname {container_file_path}) && g++ {os.path.basename(container_file_path)} -o {cpp_out} && ./{cpp_out}"
             else:
                 return {
@@ -381,17 +405,17 @@ class FileOperations(MCP):
             if result.returncode == 0:
                 status = "success"
                 if not stdout and not stderr:
-                    message = f"File {file_path} executed successfully with no output."
+                    message = f"File {normalized_path} executed successfully with no output."
                 else:
-                    message = f"File {file_path} executed successfully."
+                    message = f"File {normalized_path} executed successfully."
             else:
                 status = "error"
-                message = f"Error executing file {file_path}."
+                message = f"Error executing file {normalized_path}."
 
             return {
                 "status": status,
                 "message": message,
-                "file_path": file_path,
+                "file_path": normalized_path,
                 "command": command,
                 "stdout": stdout,
                 "stderr": stderr,
@@ -402,7 +426,7 @@ class FileOperations(MCP):
             return {
                 "status": "error",
                 "message": f"Execution timed out after 30 seconds.",
-                "file_path": file_path,
+                "file_path": normalized_path,
                 "command": command if 'command' in locals() else None
             }
         except Exception as e:
@@ -410,5 +434,5 @@ class FileOperations(MCP):
             return {
                 "status": "error",
                 "message": f"Error running file: {str(e)}",
-                "file_path": file_path
+                "file_path": normalized_path if 'normalized_path' in locals() else file_path
             }
