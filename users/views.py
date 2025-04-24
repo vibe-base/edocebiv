@@ -3,8 +3,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 import os
 import shutil
+import json
+import requests
 from .models import Project, UserProfile
 from .forms import ProjectForm, UserProfileForm
 from .docker_utils import docker_manager
@@ -241,6 +245,9 @@ def code_editor(request, pk):
     """View for the code editor interface that resembles Visual Studio Code."""
     project = get_object_or_404(Project, pk=pk, user=request.user)
 
+    # Get the user profile
+    user_profile, created = UserProfile.objects.get_or_create(user=request.user)
+
     # Get the project's data directory
     data_dir = project.get_data_directory()
 
@@ -341,7 +348,8 @@ def code_editor(request, pk):
         'current_file': current_file,
         'docker_available': docker_available,
         'container_running': container_running,
-        'data_dir': data_dir
+        'data_dir': data_dir,
+        'user_profile': user_profile
     })
 
 @login_required
@@ -527,3 +535,103 @@ def file_rename(request, pk):
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+@require_POST
+@csrf_exempt
+def chat_with_openai(request, pk):
+    """Send a message to OpenAI API and get a response."""
+    try:
+        # Get the project and user profile
+        project = get_object_or_404(Project, pk=pk, user=request.user)
+        user_profile = UserProfile.objects.get(user=request.user)
+
+        # Check if the user has an OpenAI API key
+        if not user_profile.openai_api_key:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'No OpenAI API key found. Please add your API key in your profile settings.'
+            }, status=400)
+
+        # Parse the request body
+        data = json.loads(request.body)
+        message = data.get('message')
+
+        if not message:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Message is required'
+            }, status=400)
+
+        # Get the current file content if provided
+        current_file = data.get('current_file')
+        current_file_content = data.get('current_file_content')
+
+        # Prepare the system message with context about the project
+        system_message = f"You are an AI coding assistant helping with a project named '{project.title}'. "
+
+        if project.description:
+            system_message += f"Project description: {project.description}. "
+
+        system_message += "Provide concise, helpful responses focused on coding assistance. "
+
+        if current_file:
+            system_message += f"The user is currently editing a file named '{current_file}'. "
+
+        # Prepare the messages for the API
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": message}
+        ]
+
+        # If there's a current file, include its content
+        if current_file and current_file_content:
+            file_message = f"Here's the content of the file I'm working on ({current_file}):\n\n```\n{current_file_content}\n```"
+            messages.insert(1, {"role": "user", "content": file_message})
+
+        # Make the API request to OpenAI
+        headers = {
+            "Authorization": f"Bearer {user_profile.openai_api_key}",
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "model": "gpt-3.5-turbo",
+            "messages": messages,
+            "temperature": 0.7,
+            "max_tokens": 1000
+        }
+
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=payload
+        )
+
+        # Check if the request was successful
+        if response.status_code != 200:
+            error_message = response.json().get('error', {}).get('message', 'Unknown error')
+            return JsonResponse({
+                'status': 'error',
+                'message': f"OpenAI API error: {error_message}"
+            }, status=response.status_code)
+
+        # Extract the assistant's response
+        response_data = response.json()
+        assistant_message = response_data['choices'][0]['message']['content']
+
+        return JsonResponse({
+            'status': 'success',
+            'message': assistant_message
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Invalid JSON in request body'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
