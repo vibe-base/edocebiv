@@ -573,7 +573,44 @@ def chat_with_openai(request, pk):
         if project.description:
             system_message += f"Project description: {project.description}. "
 
-        system_message += "Provide concise, helpful responses focused on coding assistance. "
+        system_message += """
+You can use tools to interact with the codebase. To use a tool, include a code block with the tool name and arguments in JSON format:
+
+```tool
+{
+  "name": "tool_name",
+  "arguments": {
+    "arg1": "value1",
+    "arg2": "value2"
+  }
+}
+```
+
+Available tools:
+- update_file: Update the content of a file
+  Arguments: file_path, content
+- create_file: Create a new file
+  Arguments: file_path, content
+- delete_file: Delete a file
+  Arguments: file_path
+- read_file: Read the content of a file
+  Arguments: file_path
+- list_files: List files in a directory
+  Arguments: directory_path (optional, defaults to project root)
+
+Example of using the create_file tool:
+```tool
+{
+  "name": "create_file",
+  "arguments": {
+    "file_path": "example.py",
+    "content": "print('Hello, world!')"
+  }
+}
+```
+
+Provide concise, helpful responses focused on coding assistance.
+"""
 
         if current_file:
             system_message += f"The user is currently editing a file named '{current_file}'. "
@@ -599,7 +636,7 @@ def chat_with_openai(request, pk):
             "model": "gpt-3.5-turbo",
             "messages": messages,
             "temperature": 0.7,
-            "max_tokens": 1000
+            "max_tokens": 1500
         }
 
         response = requests.post(
@@ -620,9 +657,16 @@ def chat_with_openai(request, pk):
         response_data = response.json()
         assistant_message = response_data['choices'][0]['message']['content']
 
+        # Process the message with the AI protocol
+        from .ai_protocol import AIProtocol
+        protocol = AIProtocol(project, request.user)
+        processed_message, tool_results = protocol.process_message(assistant_message)
+
+        # Return the processed message and tool results
         return JsonResponse({
             'status': 'success',
-            'message': assistant_message
+            'message': processed_message,
+            'tool_results': tool_results
         })
 
     except json.JSONDecodeError:

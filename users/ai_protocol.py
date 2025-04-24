@@ -1,0 +1,362 @@
+"""
+AI Protocol for interacting with the codebase.
+This module provides tools for the AI assistant to interact with the codebase.
+"""
+
+import os
+import re
+import json
+from django.shortcuts import get_object_or_404
+from .models import Project
+
+class AIProtocol:
+    """Protocol for AI to interact with the codebase."""
+    
+    def __init__(self, project, user):
+        """Initialize the protocol with a project and user."""
+        self.project = project
+        self.user = user
+        self.data_dir = project.get_data_directory()
+    
+    def update_file(self, file_path, content):
+        """Update the content of a file.
+        
+        Args:
+            file_path (str): Path to the file relative to the project root.
+            content (str): New content for the file.
+            
+        Returns:
+            dict: Result of the operation.
+        """
+        try:
+            # Security check: make sure the file is within the project directory
+            full_path = os.path.join(self.data_dir, file_path)
+            if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
+                return {
+                    'status': 'error',
+                    'message': 'Invalid file path. The file must be within the project directory.'
+                }
+            
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            
+            # Write the file
+            with open(full_path, 'w') as f:
+                f.write(content)
+            
+            return {
+                'status': 'success',
+                'message': f'File {file_path} updated successfully.',
+                'file_path': file_path
+            }
+        
+        except Exception as e:
+            return {
+                'status': 'error',
+                'message': f'Error updating file: {str(e)}'
+            }
+    
+    def create_file(self, file_path, content=""):
+        """Create a new file.
+        
+        Args:
+            file_path (str): Path to the file relative to the project root.
+            content (str, optional): Content for the new file. Defaults to "".
+            
+        Returns:
+            dict: Result of the operation.
+        """
+        try:
+            # Security check: make sure the file is within the project directory
+            full_path = os.path.join(self.data_dir, file_path)
+            if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
+                return {
+                    'status': 'error',
+                    'message': 'Invalid file path. The file must be within the project directory.'
+                }
+            
+            # Check if the file already exists
+            if os.path.exists(full_path):
+                return {
+                    'status': 'error',
+                    'message': f'File {file_path} already exists.'
+                }
+            
+            # Create directory if it doesn't exist
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            
+            # Write the file
+            with open(full_path, 'w') as f:
+                f.write(content)
+            
+            return {
+                'status': 'success',
+                'message': f'File {file_path} created successfully.',
+                'file_path': file_path
+            }
+        
+        except Exception as e:
+            return {
+                'status': 'error',
+                'message': f'Error creating file: {str(e)}'
+            }
+    
+    def delete_file(self, file_path):
+        """Delete a file.
+        
+        Args:
+            file_path (str): Path to the file relative to the project root.
+            
+        Returns:
+            dict: Result of the operation.
+        """
+        try:
+            # Security check: make sure the file is within the project directory
+            full_path = os.path.join(self.data_dir, file_path)
+            if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
+                return {
+                    'status': 'error',
+                    'message': 'Invalid file path. The file must be within the project directory.'
+                }
+            
+            # Check if the file exists
+            if not os.path.exists(full_path):
+                return {
+                    'status': 'error',
+                    'message': f'File {file_path} does not exist.'
+                }
+            
+            # Delete the file
+            if os.path.isdir(full_path):
+                import shutil
+                shutil.rmtree(full_path)
+                message = f'Directory {file_path} deleted successfully.'
+            else:
+                os.remove(full_path)
+                message = f'File {file_path} deleted successfully.'
+            
+            return {
+                'status': 'success',
+                'message': message,
+                'file_path': file_path
+            }
+        
+        except Exception as e:
+            return {
+                'status': 'error',
+                'message': f'Error deleting file: {str(e)}'
+            }
+    
+    def read_file(self, file_path):
+        """Read the content of a file.
+        
+        Args:
+            file_path (str): Path to the file relative to the project root.
+            
+        Returns:
+            dict: Result of the operation with file content.
+        """
+        try:
+            # Security check: make sure the file is within the project directory
+            full_path = os.path.join(self.data_dir, file_path)
+            if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
+                return {
+                    'status': 'error',
+                    'message': 'Invalid file path. The file must be within the project directory.'
+                }
+            
+            # Check if the file exists
+            if not os.path.exists(full_path):
+                return {
+                    'status': 'error',
+                    'message': f'File {file_path} does not exist.'
+                }
+            
+            # Check if it's a directory
+            if os.path.isdir(full_path):
+                return {
+                    'status': 'error',
+                    'message': f'{file_path} is a directory, not a file.'
+                }
+            
+            # Read the file
+            with open(full_path, 'r') as f:
+                content = f.read()
+            
+            return {
+                'status': 'success',
+                'message': f'File {file_path} read successfully.',
+                'file_path': file_path,
+                'content': content
+            }
+        
+        except Exception as e:
+            return {
+                'status': 'error',
+                'message': f'Error reading file: {str(e)}'
+            }
+    
+    def list_files(self, directory_path=""):
+        """List files in a directory.
+        
+        Args:
+            directory_path (str, optional): Path to the directory relative to the project root. Defaults to "".
+            
+        Returns:
+            dict: Result of the operation with file list.
+        """
+        try:
+            # Security check: make sure the directory is within the project directory
+            full_path = os.path.join(self.data_dir, directory_path)
+            if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
+                return {
+                    'status': 'error',
+                    'message': 'Invalid directory path. The directory must be within the project directory.'
+                }
+            
+            # Check if the directory exists
+            if not os.path.exists(full_path):
+                return {
+                    'status': 'error',
+                    'message': f'Directory {directory_path} does not exist.'
+                }
+            
+            # Check if it's a directory
+            if not os.path.isdir(full_path):
+                return {
+                    'status': 'error',
+                    'message': f'{directory_path} is a file, not a directory.'
+                }
+            
+            # List files and directories
+            items = []
+            for item in os.listdir(full_path):
+                item_path = os.path.join(directory_path, item)
+                item_full_path = os.path.join(self.data_dir, item_path)
+                
+                # Skip hidden files
+                if item.startswith('.'):
+                    continue
+                
+                is_dir = os.path.isdir(item_full_path)
+                
+                items.append({
+                    'name': item,
+                    'path': item_path,
+                    'is_dir': is_dir
+                })
+            
+            # Sort items: directories first, then files, both alphabetically
+            items.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))
+            
+            return {
+                'status': 'success',
+                'message': f'Directory {directory_path} listed successfully.',
+                'directory_path': directory_path,
+                'items': items
+            }
+        
+        except Exception as e:
+            return {
+                'status': 'error',
+                'message': f'Error listing directory: {str(e)}'
+            }
+
+    @staticmethod
+    def parse_tools_from_message(message):
+        """Parse tool calls from an AI message.
+        
+        Args:
+            message (str): The AI message to parse.
+            
+        Returns:
+            list: List of tool calls.
+        """
+        # Regular expression to match tool calls
+        tool_pattern = r'```tool\s+([\s\S]*?)```'
+        
+        # Find all tool calls in the message
+        tool_matches = re.findall(tool_pattern, message)
+        
+        tool_calls = []
+        for tool_match in tool_matches:
+            try:
+                # Parse the tool call as JSON
+                tool_call = json.loads(tool_match)
+                tool_calls.append(tool_call)
+            except json.JSONDecodeError:
+                # If the tool call is not valid JSON, skip it
+                continue
+        
+        return tool_calls
+    
+    def execute_tool(self, tool_call):
+        """Execute a tool call.
+        
+        Args:
+            tool_call (dict): The tool call to execute.
+            
+        Returns:
+            dict: Result of the tool execution.
+        """
+        tool_name = tool_call.get('name')
+        arguments = tool_call.get('arguments', {})
+        
+        # Map tool names to methods
+        tools = {
+            'update_file': self.update_file,
+            'create_file': self.create_file,
+            'delete_file': self.delete_file,
+            'read_file': self.read_file,
+            'list_files': self.list_files
+        }
+        
+        # Check if the tool exists
+        if tool_name not in tools:
+            return {
+                'status': 'error',
+                'message': f'Unknown tool: {tool_name}'
+            }
+        
+        # Execute the tool
+        tool_method = tools[tool_name]
+        return tool_method(**arguments)
+    
+    def process_message(self, message):
+        """Process an AI message and execute any tool calls.
+        
+        Args:
+            message (str): The AI message to process.
+            
+        Returns:
+            tuple: (processed_message, tool_results)
+        """
+        # Parse tool calls from the message
+        tool_calls = self.parse_tools_from_message(message)
+        
+        # If there are no tool calls, return the original message
+        if not tool_calls:
+            return message, []
+        
+        # Execute each tool call
+        tool_results = []
+        for tool_call in tool_calls:
+            result = self.execute_tool(tool_call)
+            tool_results.append({
+                'tool': tool_call.get('name'),
+                'arguments': tool_call.get('arguments', {}),
+                'result': result
+            })
+        
+        # Replace tool calls with their results in the message
+        processed_message = message
+        for i, tool_match in enumerate(re.finditer(r'```tool\s+([\s\S]*?)```', message)):
+            if i < len(tool_results):
+                result = tool_results[i]['result']
+                status = result['status']
+                result_message = result['message']
+                
+                replacement = f"```\n# Tool Result: {status.upper()}\n{result_message}\n```"
+                processed_message = processed_message.replace(tool_match.group(0), replacement, 1)
+        
+        return processed_message, tool_results

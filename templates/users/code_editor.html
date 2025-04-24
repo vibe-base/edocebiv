@@ -637,6 +637,26 @@
         white-space: pre;
     }
 
+    .chat-tool-result {
+        background-color: var(--editor-bg);
+        border-left: 3px solid;
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin: 8px 0;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+        overflow-x: auto;
+        white-space: pre;
+    }
+
+    .chat-tool-result.success {
+        border-left-color: #4caf50;
+    }
+
+    .chat-tool-result.error {
+        border-left-color: #f44336;
+    }
+
     .chat-loading {
         display: flex;
         align-items: center;
@@ -997,21 +1017,28 @@
 
                 for (let i = 0; i < parts.length; i++) {
                     if (i % 2 === 0) {
-                        // Regular text
-                        processedContent += parts[i];
+                        // Regular text - convert newlines to <br> tags
+                        processedContent += parts[i].replace(/\n/g, '<br>');
                     } else {
                         // Code block
                         const language = parts[i-1] || '';
                         const code = parts[i+1] || '';
                         i++; // Skip the next part which is the code content
 
-                        processedContent += `<div class="chat-code-block">${code}</div>`;
+                        // Check if it's a tool result
+                        if (language === '' && code.trim().startsWith('# Tool Result:')) {
+                            const resultStatus = code.includes('SUCCESS') ? 'success' : 'error';
+                            processedContent += `<div class="chat-tool-result ${resultStatus}">${code}</div>`;
+                        } else {
+                            processedContent += `<div class="chat-code-block">${code}</div>`;
+                        }
                     }
                 }
 
                 contentDiv.innerHTML = processedContent;
             } else {
-                contentDiv.textContent = content;
+                // Convert newlines to <br> tags
+                contentDiv.innerHTML = content.replace(/\n/g, '<br>');
             }
 
             messageDiv.appendChild(senderDiv);
@@ -1100,6 +1127,34 @@
                 if (data.status === 'success') {
                     // Add assistant message to chat
                     addMessage(data.message, 'assistant');
+
+                    // Handle tool results
+                    if (data.tool_results && data.tool_results.length > 0) {
+                        // Check if any file operations were performed
+                        const fileOperations = data.tool_results.filter(result =>
+                            ['create_file', 'update_file', 'delete_file'].includes(result.tool) &&
+                            result.result.status === 'success'
+                        );
+
+                        // If files were modified, refresh the file explorer
+                        if (fileOperations.length > 0) {
+                            refreshFileExplorer();
+
+                            // If the current file was updated, reload it
+                            const currentFilePath = document.querySelector('.editor-tab.active')?.getAttribute('data-path');
+                            if (currentFilePath) {
+                                const updatedFile = fileOperations.find(op =>
+                                    op.result.file_path === currentFilePath &&
+                                    ['create_file', 'update_file'].includes(op.tool)
+                                );
+
+                                if (updatedFile) {
+                                    // Reload the file content
+                                    openFile(currentFilePath);
+                                }
+                            }
+                        }
+                    }
                 } else {
                     // Add error message
                     addMessage(`Error: ${data.message}`, 'assistant');
