@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Reasoning - {{ project.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">AI Reasoning - {{ project.title }}</h4>
+            <a href="{% url 'project_detail' project.pk %}" class="btn btn-sm btn-light">
+                <i class="bi bi-arrow-left"></i> Back to Project
+            </a>
+        </div>
+        
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">Start New Reasoning Session</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="reasoning-form">
+                                <div class="mb-3">
+                                    <label for="task-description" class="form-label">Task Description</label>
+                                    <textarea id="task-description" class="form-control" rows="3" placeholder="Describe the task you want the AI to perform..."></textarea>
+                                    <div class="form-text">
+                                        Be specific about what you want to accomplish. For example: "Create a login form with validation" or "Fix the bug in the user registration function".
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" id="start-reasoning-btn" class="btn btn-primary">
+                                        <i class="bi bi-play-fill"></i> Start Reasoning Session
+                                    </button>
+                                    <button type="button" id="execute-full-reasoning-btn" class="btn btn-success">
+                                        <i class="bi bi-lightning-fill"></i> Execute Full Reasoning Chain
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h5 class="mb-3">Previous Reasoning Sessions</h5>
+            
+            <div id="sessions-container">
+                {% if sessions %}
+                    {% for session in sessions %}
+                        <div class="card mb-3">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">{{ session.title }}</h6>
+                                <span class="badge {% if session.is_complete %}bg-success{% else %}bg-warning{% endif %}">
+                                    {% if session.is_complete %}Complete{% else %}In Progress{% endif %}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-muted small">Created: {{ session.created_at|date:"M d, Y H:i" }}</p>
+                                <p>{{ session.description|truncatechars:150 }}</p>
+                                <div class="d-flex justify-content-end">
+                                    <a href="{% url 'reasoning_session_detail' project.pk session.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i> View Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> No reasoning sessions yet. Start a new session to see AI reasoning in action.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loading-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Processing</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p id="loading-message">The AI is working on your task. This may take a minute...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const startReasoningBtn = document.getElementById('start-reasoning-btn');
+        const executeFullReasoningBtn = document.getElementById('execute-full-reasoning-btn');
+        const taskDescriptionInput = document.getElementById('task-description');
+        const loadingModal = new bootstrap.Modal(document.getElementById('loading-modal'));
+        
+        // Start a new reasoning session
+        startReasoningBtn.addEventListener('click', function() {
+            const taskDescription = taskDescriptionInput.value.trim();
+            
+            if (!taskDescription) {
+                alert('Please enter a task description');
+                return;
+            }
+            
+            // Show loading modal
+            loadingModal.show();
+            document.getElementById('loading-message').textContent = 'Creating a new reasoning session...';
+            
+            // Get current file information if available
+            let currentFile = null;
+            let currentFileContent = null;
+            
+            // Make API request
+            fetch('{% url "start_reasoning" project.pk %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    task: taskDescription,
+                    current_file: currentFile,
+                    current_file_content: currentFileContent
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingModal.hide();
+                
+                if (data.status === 'success') {
+                    // Redirect to the session detail page
+                    window.location.href = `{% url 'reasoning_session_detail' project.pk %}${data.session_id}/`;
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                loadingModal.hide();
+                alert(`Error: ${error.message}`);
+            });
+        });
+        
+        // Execute full reasoning chain
+        executeFullReasoningBtn.addEventListener('click', function() {
+            const taskDescription = taskDescriptionInput.value.trim();
+            
+            if (!taskDescription) {
+                alert('Please enter a task description');
+                return;
+            }
+            
+            // Show loading modal
+            loadingModal.show();
+            document.getElementById('loading-message').textContent = 'Executing full reasoning chain. This may take several minutes...';
+            
+            // Get current file information if available
+            let currentFile = null;
+            let currentFileContent = null;
+            
+            // Make API request
+            fetch('{% url "execute_full_reasoning" project.pk %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    task: taskDescription,
+                    current_file: currentFile,
+                    current_file_content: currentFileContent
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingModal.hide();
+                
+                if (data.status === 'success') {
+                    // Redirect to the session detail page
+                    window.location.href = `{% url 'reasoning_session_detail' project.pk %}${data.session.id}/`;
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                loadingModal.hide();
+                alert(`Error: ${error.message}`);
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -92,3 +92,51 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.role} message in {self.project.title} at {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+
+class ReasoningSession(models.Model):
+    """Model representing an AI reasoning session with multiple steps."""
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='reasoning_sessions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_complete = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Reasoning session: {self.title} for {self.project.title}"
+
+
+class ReasoningStep(models.Model):
+    """Model representing a step in an AI reasoning session."""
+    session = models.ForeignKey(ReasoningSession, on_delete=models.CASCADE, related_name='steps')
+    step_number = models.PositiveIntegerField()
+    step_type = models.CharField(max_length=50, choices=[
+        ('planning', 'Planning'),
+        ('analysis', 'Analysis'),
+        ('code_generation', 'Code Generation'),
+        ('code_execution', 'Code Execution'),
+        ('testing', 'Testing'),
+        ('refinement', 'Refinement'),
+        ('conclusion', 'Conclusion')
+    ])
+    prompt = models.TextField()
+    response = models.TextField(blank=True)
+    model_used = models.CharField(max_length=50, default='gpt-4o')
+    tool_calls = models.JSONField(null=True, blank=True)
+    tool_results = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_complete = models.BooleanField(default=False)
+    error = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['session', 'step_number']
+        unique_together = ['session', 'step_number']
+
+    def __str__(self):
+        return f"Step {self.step_number}: {self.step_type} in {self.session.title}"

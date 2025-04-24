@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import reasoning_views
 
 urlpatterns = [
     # Profile URLs
@@ -35,4 +36,13 @@ urlpatterns = [
 
     # Run file API URL
     path('projects/<int:pk>/run-file/', views.run_file, name='run_file'),
+
+    # AI Reasoning URLs
+    path('projects/<int:pk>/reasoning/', reasoning_views.reasoning_dashboard, name='reasoning_dashboard'),
+    path('projects/<int:pk>/reasoning/sessions/', reasoning_views.get_reasoning_sessions, name='get_reasoning_sessions'),
+    path('projects/<int:pk>/reasoning/sessions/<int:session_id>/', reasoning_views.reasoning_session_detail, name='reasoning_session_detail'),
+    path('projects/<int:pk>/reasoning/sessions/<int:session_id>/api/', reasoning_views.get_reasoning_session, name='get_reasoning_session'),
+    path('projects/<int:pk>/reasoning/start/', reasoning_views.start_reasoning, name='start_reasoning'),
+    path('projects/<int:pk>/reasoning/execute/', reasoning_views.execute_full_reasoning, name='execute_full_reasoning'),
+    path('projects/<int:pk>/reasoning/sessions/<int:session_id>/step/', reasoning_views.execute_reasoning_step, name='execute_reasoning_step'),
 ]

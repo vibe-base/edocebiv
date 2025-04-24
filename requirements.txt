@@ -9,8 +9,13 @@ django-appconf==1.1.0
 django-cryptography==1.1
 docker==7.1.0
 idna==3.10
+langchain==0.1.12
+langchain-openai==0.1.5
+openai==1.12.0
 pycparser==2.22
 PyJWT==2.10.1
+pydantic==2.6.3
 requests==2.32.3
 sqlparse==0.5.3
+typing-extensions==4.10.0
 urllib3==2.4.0

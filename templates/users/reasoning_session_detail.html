@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+
+{% block title %}Reasoning Session - {{ session.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Reasoning Session</h4>
+            <div>
+                <a href="{% url 'reasoning_dashboard' project.pk %}" class="btn btn-sm btn-light me-2">
+                    <i class="bi bi-arrow-left"></i> Back to Reasoning Dashboard
+                </a>
+                <a href="{% url 'code_editor' project.pk %}" class="btn btn-sm btn-light">
+                    <i class="bi bi-code-slash"></i> Code Editor
+                </a>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <div class="mb-4">
+                <h5>{{ session.title }}</h5>
+                <p class="text-muted">
+                    Created: {{ session.created_at|date:"M d, Y H:i" }} | 
+                    Status: <span class="badge {% if session.is_complete %}bg-success{% else %}bg-warning{% endif %}">
+                        {% if session.is_complete %}Complete{% else %}In Progress{% endif %}
+                    </span>
+                </p>
+                <p>{{ session.description }}</p>
+            </div>
+            
+            <h5 class="mb-3">Reasoning Steps</h5>
+            
+            <div class="accordion" id="stepsAccordion">
+                {% for step in steps %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ step.id }}">
+                        <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ step.id }}" aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}" aria-controls="collapse{{ step.id }}">
+                            <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                                <span>
+                                    <strong>Step {{ step.step_number }}:</strong> {{ step.step_type|title }}
+                                </span>
+                                <span class="badge {% if step.is_complete %}bg-success{% elif step.error %}bg-danger{% else %}bg-warning{% endif %} ms-2">
+                                    {% if step.is_complete %}Complete{% elif step.error %}Error{% else %}In Progress{% endif %}
+                                </span>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ step.id }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" aria-labelledby="heading{{ step.id }}" data-bs-parent="#stepsAccordion">
+                        <div class="accordion-body">
+                            <div class="mb-3">
+                                <h6>Prompt:</h6>
+                                <div class="card">
+                                    <div class="card-body bg-light">
+                                        <pre class="mb-0"><code>{{ step.prompt }}</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h6>Response:</h6>
+                                <div class="card">
+                                    <div class="card-body bg-light">
+                                        {% if step.is_complete %}
+                                            <div class="markdown-content">{{ step.response|linebreaks }}</div>
+                                        {% elif step.error %}
+                                            <div class="text-danger">Error: {{ step.error }}</div>
+                                        {% else %}
+                                            <div class="text-center">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                                <p>Processing...</p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <span class="badge bg-secondary">Model: {{ step.model_used }}</span>
+                                    <span class="badge bg-secondary ms-2">Created: {{ step.created_at|date:"M d, Y H:i" }}</span>
+                                </div>
+                                
+                                {% if not session.is_complete and step.is_complete and forloop.last %}
+                                <div>
+                                    <button class="btn btn-sm btn-primary add-step-btn" data-step-number="{{ step.step_number|add:1 }}">
+                                        <i class="bi bi-plus-circle"></i> Add Next Step
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> No steps have been executed yet.
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if not session.is_complete and steps|length == 0 %}
+            <div class="mt-4">
+                <button id="start-planning-btn" class="btn btn-primary">
+                    <i class="bi bi-play-fill"></i> Start Planning
+                </button>
+            </div>
+            {% endif %}
+            
+            {% if not session.is_complete and steps|length > 0 %}
+            <div class="mt-4">
+                <button id="complete-session-btn" class="btn btn-success">
+                    <i class="bi bi-check-circle"></i> Complete Session
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Step Modal -->
+<div class="modal fade" id="add-step-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Next Reasoning Step</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-step-form">
+                    <input type="hidden" id="step-number" value="">
+                    
+                    <div class="mb-3">
+                        <label for="step-type" class="form-label">Step Type</label>
+                        <select id="step-type" class="form-select">
+                            <option value="planning">Planning</option>
+                            <option value="analysis">Analysis</option>
+                            <option value="code_generation">Code Generation</option>
+                            <option value="code_execution">Code Execution</option>
+                            <option value="testing">Testing</option>
+                            <option value="refinement">Refinement</option>
+                            <option value="conclusion">Conclusion</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="step-prompt" class="form-label">Prompt</label>
+                        <textarea id="step-prompt" class="form-control" rows="5" placeholder="Enter the prompt for this step..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="execute-step-btn" class="btn btn-primary">Execute Step</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loading-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Processing</h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p id="loading-message">The AI is working on this step. This may take a minute...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const addStepModal = new bootstrap.Modal(document.getElementById('add-step-modal'));
+        const loadingModal = new bootstrap.Modal(document.getElementById('loading-modal'));
+        
+        // Add step button click
+        document.querySelectorAll('.add-step-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const stepNumber = this.getAttribute('data-step-number');
+                document.getElementById('step-number').value = stepNumber;
+                
+                // Set default prompt based on previous steps
+                const previousStepResponse = document.querySelector(`.accordion-item:nth-child(${parseInt(stepNumber) - 1}) .markdown-content`).textContent;
+                let defaultPrompt = `Based on the previous step:\n\n${previousStepResponse.substring(0, 500)}${previousStepResponse.length > 500 ? '...' : ''}\n\nContinue with the next step.`;
+                
+                document.getElementById('step-prompt').value = defaultPrompt;
+                
+                addStepModal.show();
+            });
+        });
+        
+        // Execute step button click
+        document.getElementById('execute-step-btn').addEventListener('click', function() {
+            const stepNumber = document.getElementById('step-number').value;
+            const stepType = document.getElementById('step-type').value;
+            const prompt = document.getElementById('step-prompt').value.trim();
+            
+            if (!prompt) {
+                alert('Please enter a prompt');
+                return;
+            }
+            
+            // Hide the add step modal
+            addStepModal.hide();
+            
+            // Show loading modal
+            loadingModal.show();
+            
+            // Make API request
+            fetch('{% url "execute_reasoning_step" project.pk session.pk %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    step_type: stepType,
+                    prompt: prompt
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loadingModal.hide();
+                
+                if (data.status === 'success') {
+                    // Reload the page to show the new step
+                    window.location.reload();
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => {
+                loadingModal.hide();
+                alert(`Error: ${error.message}`);
+            });
+        });
+        
+        // Start planning button click
+        const startPlanningBtn = document.getElementById('start-planning-btn');
+        if (startPlanningBtn) {
+            startPlanningBtn.addEventListener('click', function() {
+                // Show loading modal
+                loadingModal.show();
+                
+                // Make API request
+                fetch('{% url "execute_reasoning_step" project.pk session.pk %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        step_type: 'planning',
+                        prompt: `Task: {{ session.description }}\n\nCreate a detailed plan to accomplish this task.`
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadingModal.hide();
+                    
+                    if (data.status === 'success') {
+                        // Reload the page to show the new step
+                        window.location.reload();
+                    } else {
+                        alert(`Error: ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    loadingModal.hide();
+                    alert(`Error: ${error.message}`);
+                });
+            });
+        }
+        
+        // Complete session button click
+        const completeSessionBtn = document.getElementById('complete-session-btn');
+        if (completeSessionBtn) {
+            completeSessionBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to mark this session as complete?')) {
+                    // Make API request to mark session as complete
+                    fetch('{% url "execute_reasoning_step" project.pk session.pk %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({
+                            step_type: 'conclusion',
+                            prompt: `Task: {{ session.description }}\n\nProvide a summary of what was accomplished and any next steps or recommendations.`
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            // Reload the page to show the new step
+                            window.location.reload();
+                        } else {
+                            alert(`Error: ${data.message}`);
+                        }
+                    })
+                    .catch(error => {
+                        alert(`Error: ${error.message}`);
+                    });
+                }
+            });
+        }
+        
+        // Format markdown content
+        document.querySelectorAll('.markdown-content').forEach(element => {
+            // Replace code blocks
+            element.innerHTML = element.innerHTML.replace(/```(\w*)([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>');
+            
+            // Replace inline code
+            element.innerHTML = element.innerHTML.replace(/`([^`]+)`/g, '<code>$1</code>');
+        });
+    });
+</script>
+{% endblock %}
