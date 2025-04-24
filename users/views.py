@@ -722,6 +722,88 @@ Provide concise, helpful responses focused on coding assistance.
 
 
 @login_required
+def get_file_tree(request, pk):
+    """Get the file tree for a project."""
+    try:
+        # Get the project
+        project = get_object_or_404(Project, pk=pk, user=request.user)
+
+        # Get the project's data directory
+        data_dir = project.get_data_directory()
+
+        # Function to recursively get all files and directories
+        def get_directory_structure(root_path, relative_path=""):
+            items = []
+            full_path = os.path.join(root_path, relative_path)
+
+            try:
+                for item in os.listdir(full_path):
+                    item_relative_path = os.path.join(relative_path, item)
+                    item_full_path = os.path.join(root_path, item_relative_path)
+
+                    is_dir = os.path.isdir(item_full_path)
+
+                    # Skip hidden files and directories
+                    if item.startswith('.'):
+                        continue
+
+                    if is_dir:
+                        children = get_directory_structure(root_path, item_relative_path)
+                        items.append({
+                            'name': item,
+                            'path': item_relative_path,
+                            'is_dir': True,
+                            'children': children
+                        })
+                    else:
+                        # Get file size
+                        size = os.path.getsize(item_full_path)
+                        # Format size
+                        if size < 1024:
+                            size_str = f"{size} B"
+                        elif size < 1024 * 1024:
+                            size_str = f"{size / 1024:.1f} KB"
+                        else:
+                            size_str = f"{size / (1024 * 1024):.1f} MB"
+
+                        # Get file extension
+                        _, ext = os.path.splitext(item)
+                        ext = ext.lstrip('.')
+
+                        items.append({
+                            'name': item,
+                            'path': item_relative_path,
+                            'is_dir': False,
+                            'size': size_str,
+                            'extension': ext
+                        })
+            except FileNotFoundError:
+                # If the directory doesn't exist yet, create it
+                os.makedirs(full_path, exist_ok=True)
+            except PermissionError:
+                # Handle permission errors
+                pass
+
+            # Sort items: directories first, then files, both alphabetically
+            return sorted(items, key=lambda x: (not x['is_dir'], x['name'].lower()))
+
+        # Get the directory structure
+        directory_structure = get_directory_structure(data_dir)
+
+        # Return the directory structure as JSON
+        return JsonResponse({
+            'status': 'success',
+            'directory_structure': directory_structure
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
+
+@login_required
 def chat_history(request, pk):
     """Get the chat history for a project."""
     try:

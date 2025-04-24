@@ -29,4 +29,7 @@ urlpatterns = [
     # Chat API URLs
     path('projects/<int:pk>/chat/', views.chat_with_openai, name='chat_with_openai'),
     path('projects/<int:pk>/chat/history/', views.chat_history, name='chat_history'),
+
+    # File tree API URL
+    path('projects/<int:pk>/file-tree/', views.get_file_tree, name='get_file_tree'),
 ]

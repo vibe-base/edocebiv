@@ -249,6 +249,19 @@
         background-color: var(--sidebar-hover);
     }
 
+    .loading-indicator {
+        padding: 10px;
+        color: var(--editor-text);
+        font-style: italic;
+        font-size: 12px;
+    }
+
+    .error-message {
+        padding: 10px;
+        color: #f44336;
+        font-size: 12px;
+    }
+
     .file-item.active {
         background-color: var(--editor-selection);
     }
@@ -1394,7 +1407,243 @@
     }
 
     function refreshFileExplorer() {
-        window.location.reload();
+        // Show loading indicator in the file tree
+        const fileTree = document.getElementById('file-tree');
+        fileTree.innerHTML = '<div class="loading-indicator">Refreshing files...</div>';
+
+        // Fetch the file tree
+        fetch('{% url "get_file_tree" project.pk %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Render the file tree
+                    renderFileTree(data.directory_structure);
+                } else {
+                    // Show error
+                    fileTree.innerHTML = `<div class="error-message">Error: ${data.message}</div>`;
+                }
+            })
+            .catch(error => {
+                // Show error
+                fileTree.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+            });
+    }
+
+    function renderFileTree(items) {
+        const fileTree = document.getElementById('file-tree');
+        fileTree.innerHTML = '';
+
+        // Create the file tree HTML
+        const ul = document.createElement('ul');
+        ul.className = 'file-tree-list';
+
+        items.forEach(item => {
+            const li = document.createElement('li');
+
+            if (item.is_dir) {
+                // Folder
+                const folderItem = document.createElement('div');
+                folderItem.className = 'folder-item';
+                folderItem.setAttribute('data-path', item.path);
+                folderItem.setAttribute('data-name', item.name);
+                folderItem.onclick = function() { toggleFolder(this); };
+
+                const icon = document.createElement('i');
+                icon.className = 'bi bi-folder';
+
+                const span = document.createElement('span');
+                span.textContent = item.name;
+
+                folderItem.appendChild(icon);
+                folderItem.appendChild(document.createTextNode(' '));
+                folderItem.appendChild(span);
+
+                li.appendChild(folderItem);
+
+                // Children
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'folder-contents';
+                childrenContainer.style.display = 'none';
+
+                if (item.children && item.children.length > 0) {
+                    const childUl = document.createElement('ul');
+
+                    item.children.forEach(child => {
+                        const childLi = document.createElement('li');
+
+                        if (child.is_dir) {
+                            // Subfolder
+                            const subfolderItem = document.createElement('div');
+                            subfolderItem.className = 'folder-item';
+                            subfolderItem.setAttribute('data-path', child.path);
+                            subfolderItem.setAttribute('data-name', child.name);
+                            subfolderItem.onclick = function() { toggleFolder(this); };
+
+                            const subIcon = document.createElement('i');
+                            subIcon.className = 'bi bi-folder';
+
+                            const subSpan = document.createElement('span');
+                            subSpan.textContent = child.name;
+
+                            subfolderItem.appendChild(subIcon);
+                            subfolderItem.appendChild(document.createTextNode(' '));
+                            subfolderItem.appendChild(subSpan);
+
+                            childLi.appendChild(subfolderItem);
+
+                            // Recursive rendering for deep folders
+                            const subChildrenContainer = document.createElement('div');
+                            subChildrenContainer.className = 'folder-contents';
+                            subChildrenContainer.style.display = 'none';
+
+                            if (child.children && child.children.length > 0) {
+                                renderSubtree(child.children, subChildrenContainer);
+                            }
+
+                            childLi.appendChild(subChildrenContainer);
+                        } else {
+                            // File
+                            const fileItem = document.createElement('div');
+                            fileItem.className = 'file-item';
+                            fileItem.setAttribute('data-path', child.path);
+                            fileItem.setAttribute('data-name', child.name);
+                            fileItem.onclick = function() { openFile(child.path); };
+
+                            const fileIcon = document.createElement('i');
+                            fileIcon.className = getFileIconClass(child.extension);
+
+                            const fileSpan = document.createElement('span');
+                            fileSpan.textContent = child.name;
+
+                            fileItem.appendChild(fileIcon);
+                            fileItem.appendChild(document.createTextNode(' '));
+                            fileItem.appendChild(fileSpan);
+
+                            childLi.appendChild(fileItem);
+                        }
+
+                        childUl.appendChild(childLi);
+                    });
+
+                    childrenContainer.appendChild(childUl);
+                }
+
+                li.appendChild(childrenContainer);
+            } else {
+                // File
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.setAttribute('data-path', item.path);
+                fileItem.setAttribute('data-name', item.name);
+                fileItem.onclick = function() { openFile(item.path); };
+
+                const icon = document.createElement('i');
+                icon.className = getFileIconClass(item.extension);
+
+                const span = document.createElement('span');
+                span.textContent = item.name;
+
+                fileItem.appendChild(icon);
+                fileItem.appendChild(document.createTextNode(' '));
+                fileItem.appendChild(span);
+
+                li.appendChild(fileItem);
+            }
+
+            ul.appendChild(li);
+        });
+
+        fileTree.appendChild(ul);
+    }
+
+    function renderSubtree(items, container) {
+        const ul = document.createElement('ul');
+
+        items.forEach(item => {
+            const li = document.createElement('li');
+
+            if (item.is_dir) {
+                // Folder
+                const folderItem = document.createElement('div');
+                folderItem.className = 'folder-item';
+                folderItem.setAttribute('data-path', item.path);
+                folderItem.setAttribute('data-name', item.name);
+                folderItem.onclick = function() { toggleFolder(this); };
+
+                const icon = document.createElement('i');
+                icon.className = 'bi bi-folder';
+
+                const span = document.createElement('span');
+                span.textContent = item.name;
+
+                folderItem.appendChild(icon);
+                folderItem.appendChild(document.createTextNode(' '));
+                folderItem.appendChild(span);
+
+                li.appendChild(folderItem);
+
+                // Children
+                const childrenContainer = document.createElement('div');
+                childrenContainer.className = 'folder-contents';
+                childrenContainer.style.display = 'none';
+
+                if (item.children && item.children.length > 0) {
+                    renderSubtree(item.children, childrenContainer);
+                }
+
+                li.appendChild(childrenContainer);
+            } else {
+                // File
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.setAttribute('data-path', item.path);
+                fileItem.setAttribute('data-name', item.name);
+                fileItem.onclick = function() { openFile(item.path); };
+
+                const icon = document.createElement('i');
+                icon.className = getFileIconClass(item.extension);
+
+                const span = document.createElement('span');
+                span.textContent = item.name;
+
+                fileItem.appendChild(icon);
+                fileItem.appendChild(document.createTextNode(' '));
+                fileItem.appendChild(span);
+
+                li.appendChild(fileItem);
+            }
+
+            ul.appendChild(li);
+        });
+
+        container.appendChild(ul);
+    }
+
+    function getFileIconClass(extension) {
+        // Map file extensions to Bootstrap icons
+        const iconMap = {
+            'py': 'bi-filetype-py',
+            'js': 'bi-filetype-js',
+            'html': 'bi-filetype-html',
+            'css': 'bi-filetype-css',
+            'json': 'bi-filetype-json',
+            'md': 'bi-filetype-md',
+            'txt': 'bi-file-text',
+            'jpg': 'bi-file-image',
+            'jpeg': 'bi-file-image',
+            'png': 'bi-file-image',
+            'gif': 'bi-file-image',
+            'svg': 'bi-file-image',
+            'pdf': 'bi-file-pdf',
+            'doc': 'bi-file-word',
+            'docx': 'bi-file-word',
+            'xls': 'bi-file-excel',
+            'xlsx': 'bi-file-excel',
+            'ppt': 'bi-file-ppt',
+            'pptx': 'bi-file-ppt'
+        };
+
+        return iconMap[extension] || 'bi-file-earmark';
     }
 
     // Tab functionality
