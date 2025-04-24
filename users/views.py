@@ -9,7 +9,7 @@ import os
 import shutil
 import json
 import requests
-from .models import Project, UserProfile
+from .models import Project, UserProfile, ChatMessage
 from .forms import ProjectForm, UserProfileForm
 from .docker_utils import docker_manager
 
@@ -563,9 +563,27 @@ def chat_with_openai(request, pk):
                 'message': 'Message is required'
             }, status=400)
 
+        # Save the user message to the database
+        user_chat_message = ChatMessage.objects.create(
+            project=project,
+            user=request.user,
+            role='user',
+            content=message
+        )
+
         # Get the current file content if provided
         current_file = data.get('current_file')
         current_file_content = data.get('current_file_content')
+
+        # Get the last 10 messages for this project (excluding the one we just created)
+        recent_messages = ChatMessage.objects.filter(
+            project=project
+        ).exclude(
+            id=user_chat_message.id
+        ).order_by('-timestamp')[:9]  # Get 9 to make room for the new message
+
+        # Reverse the order to have oldest first
+        recent_messages = list(reversed(recent_messages))
 
         # Prepare the system message with context about the project
         system_message = f"You are an AI coding assistant helping with a project named '{project.title}'. "
@@ -617,9 +635,15 @@ Provide concise, helpful responses focused on coding assistance.
 
         # Prepare the messages for the API
         messages = [
-            {"role": "system", "content": system_message},
-            {"role": "user", "content": message}
+            {"role": "system", "content": system_message}
         ]
+
+        # Add conversation history
+        for msg in recent_messages:
+            messages.append({"role": msg.role, "content": msg.content})
+
+        # Add the current message
+        messages.append({"role": "user", "content": message})
 
         # If there's a current file, include its content
         if current_file and current_file_content:
@@ -662,11 +686,27 @@ Provide concise, helpful responses focused on coding assistance.
         protocol = AIProtocol(project, request.user)
         processed_message, tool_results = protocol.process_message(assistant_message)
 
-        # Return the processed message and tool results
+        # Save the assistant's response to the database
+        ChatMessage.objects.create(
+            project=project,
+            user=request.user,
+            role='assistant',
+            content=processed_message
+        )
+
+        # Return the processed message, tool results, and conversation history
         return JsonResponse({
             'status': 'success',
             'message': processed_message,
-            'tool_results': tool_results
+            'tool_results': tool_results,
+            'history': [
+                {
+                    'id': msg.id,
+                    'role': msg.role,
+                    'content': msg.content,
+                    'timestamp': msg.timestamp.isoformat()
+                } for msg in recent_messages + [user_chat_message]
+            ]
         })
 
     except json.JSONDecodeError:
@@ -674,6 +714,41 @@ Provide concise, helpful responses focused on coding assistance.
             'status': 'error',
             'message': 'Invalid JSON in request body'
         }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
+
+@login_required
+def chat_history(request, pk):
+    """Get the chat history for a project."""
+    try:
+        # Get the project
+        project = get_object_or_404(Project, pk=pk, user=request.user)
+
+        # Get the last 10 messages for this project
+        messages = ChatMessage.objects.filter(
+            project=project
+        ).order_by('-timestamp')[:10]
+
+        # Reverse the order to have oldest first
+        messages = list(reversed(messages))
+
+        # Return the messages
+        return JsonResponse({
+            'status': 'success',
+            'history': [
+                {
+                    'id': msg.id,
+                    'role': msg.role,
+                    'content': msg.content,
+                    'timestamp': msg.timestamp.isoformat()
+                } for msg in messages
+            ]
+        })
+
     except Exception as e:
         return JsonResponse({
             'status': 'error',

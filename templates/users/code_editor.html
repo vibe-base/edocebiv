@@ -818,13 +818,7 @@
             </div>
 
             <div id="chat-messages" class="chat-messages">
-                <!-- Messages will be added here dynamically -->
-                <div class="chat-message assistant">
-                    <div class="chat-message-sender">AI Assistant</div>
-                    <div class="chat-message-content">
-                        Hello! I'm your AI coding assistant. How can I help you with your project today?
-                    </div>
-                </div>
+                <!-- Messages will be loaded here dynamically -->
             </div>
 
             <div class="chat-input-container">
@@ -971,6 +965,10 @@
             chatPanel.classList.toggle('collapsed');
             if (!chatPanel.classList.contains('collapsed')) {
                 chatInput.focus();
+                // Load chat history if not already loaded
+                if (chatMessages.children.length <= 1) {
+                    loadChatHistory();
+                }
                 // Scroll to bottom of messages
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
@@ -986,6 +984,43 @@
             this.style.height = 'auto';
             this.style.height = (this.scrollHeight) + 'px';
         });
+
+        // Load chat history
+        function loadChatHistory() {
+            // Show loading indicator
+            chatMessages.innerHTML = '<div class="chat-loading">Loading conversation history...</div>';
+
+            // Fetch chat history
+            fetch('{% url "chat_history" project.pk %}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Clear loading indicator
+                        chatMessages.innerHTML = '';
+
+                        // Add messages to chat
+                        if (data.history.length === 0) {
+                            // Add welcome message if no history
+                            addMessage('Hello! I\'m your AI coding assistant. How can I help you with your project today?', 'assistant');
+                        } else {
+                            // Add history messages
+                            data.history.forEach(msg => {
+                                addMessage(msg.content, msg.role);
+                            });
+                        }
+
+                        // Scroll to bottom
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    } else {
+                        // Show error
+                        chatMessages.innerHTML = `<div class="chat-message assistant"><div class="chat-message-content">Error loading chat history: ${data.message}</div></div>`;
+                    }
+                })
+                .catch(error => {
+                    // Show error
+                    chatMessages.innerHTML = `<div class="chat-message assistant"><div class="chat-message-content">Error loading chat history: ${error.message}</div></div>`;
+                });
+        }
 
         // Handle form submission
         chatInputForm.addEventListener('submit', function(e) {

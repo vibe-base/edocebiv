@@ -77,3 +77,18 @@ class Project(models.Model):
     def has_container(self):
         """Check if a container has been created for this project."""
         return bool(self.container_id)
+
+
+class ChatMessage(models.Model):
+    """Model representing a message in a chat conversation."""
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='chat_messages')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    role = models.CharField(max_length=20, choices=[('user', 'User'), ('assistant', 'Assistant')])
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['timestamp']
+
+    def __str__(self):
+        return f"{self.role} message in {self.project.title} at {self.timestamp.strftime('%Y-%m-%d %H:%M')}"

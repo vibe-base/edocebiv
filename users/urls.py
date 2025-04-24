@@ -26,6 +26,7 @@ urlpatterns = [
     path('projects/<int:pk>/file/delete/', views.file_delete, name='file_delete'),
     path('projects/<int:pk>/file/rename/', views.file_rename, name='file_rename'),
 
-    # Chat API URL
+    # Chat API URLs
     path('projects/<int:pk>/chat/', views.chat_with_openai, name='chat_with_openai'),
+    path('projects/<int:pk>/chat/history/', views.chat_history, name='chat_history'),
 ]
