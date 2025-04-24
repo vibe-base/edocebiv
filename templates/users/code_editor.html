@@ -1,3 +1,5 @@
+{% extends 'base.html' %}
+
 {% block title %}Code Editor - {{ project.title }} - Edocebiv{% endblock %}
 
 {% block extra_css %}
@@ -20,48 +22,49 @@
         --tab-active-bg: #1e1e1e;
     }
 
-    html, body {
-        margin: 0;
+    /* Override container styles for editor */
+    .container {
+        max-width: 100%;
         padding: 0;
-        height: 100%;
-        overflow: hidden;
-    }
-
-    .navbar {
-        display: none; /* Hide the default navbar */
+        margin-top: 0;
     }
 
     .editor-container {
         display: flex;
         flex-direction: column;
-        height: 100vh;
+        height: calc(100vh - 56px); /* Adjust for navbar height */
         background-color: var(--editor-bg);
         color: var(--editor-text);
+        overflow: hidden;
     }
 
     .editor-header {
         background-color: var(--header-bg);
-        height: 35px;
+        height: 40px;
         display: flex;
         align-items: center;
-        padding: 0 10px;
+        padding: 0 15px;
         border-bottom: 1px solid var(--editor-widget-border);
     }
 
     .editor-header-left {
         display: flex;
         align-items: center;
+        min-width: 150px;
     }
 
     .editor-header-center {
         flex: 1;
         text-align: center;
         font-size: 14px;
+        font-weight: 500;
     }
 
     .editor-header-right {
         display: flex;
         align-items: center;
+        min-width: 150px;
+        justify-content: flex-end;
     }
 
     .editor-header-button {
@@ -69,13 +72,22 @@
         border: none;
         color: var(--editor-text);
         cursor: pointer;
-        padding: 5px;
+        padding: 8px 10px;
         margin: 0 2px;
-        font-size: 14px;
+        font-size: 13px;
+        border-radius: 4px;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+    }
+
+    .editor-header-button i {
+        margin-right: 5px;
     }
 
     .editor-header-button:hover {
         color: white;
+        background-color: rgba(255, 255, 255, 0.1);
     }
 
     .editor-main {
@@ -441,34 +453,28 @@
 
 {% block content %}
 <div class="editor-container">
-    <!-- Header with browser-like controls -->
+    <!-- Editor toolbar -->
     <div class="editor-header">
         <div class="editor-header-left">
-            <a href="{% url 'project_list' %}" class="editor-header-button" title="Back to Projects">
-                <i class="bi bi-arrow-left"></i>
-            </a>
-            <a href="{% url 'project_detail' project.pk %}" class="editor-header-button" title="Project Details">
-                <i class="bi bi-info-circle"></i>
+            <a href="{% url 'project_detail' project.pk %}" class="editor-header-button" title="Back to Project Details">
+                <i class="bi bi-arrow-left"></i> Project Details
             </a>
         </div>
         <div class="editor-header-center">
-            Edocebiv - {{ project.title }}
+            {{ project.title }} - Code Editor
         </div>
         <div class="editor-header-right">
             {% if docker_available and project.has_container %}
                 {% if container_running %}
                     <span class="editor-header-button" title="Container Running">
-                        <i class="bi bi-circle-fill text-success"></i>
+                        <i class="bi bi-circle-fill text-success"></i> Running
                     </span>
                 {% else %}
                     <span class="editor-header-button" title="Container Stopped">
-                        <i class="bi bi-circle-fill text-secondary"></i>
+                        <i class="bi bi-circle-fill text-secondary"></i> Stopped
                     </span>
                 {% endif %}
             {% endif %}
-            <span class="editor-header-button" title="Your Account">
-                <i class="bi bi-person-circle"></i>
-            </span>
         </div>
     </div>
 
