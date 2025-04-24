@@ -32,4 +32,7 @@ urlpatterns = [
 
     # File tree API URL
     path('projects/<int:pk>/file-tree/', views.get_file_tree, name='get_file_tree'),
+
+    # Run file API URL
+    path('projects/<int:pk>/run-file/', views.run_file, name='run_file'),
 ]

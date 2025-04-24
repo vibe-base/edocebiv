@@ -159,8 +159,15 @@
         opacity: 1;
     }
 
-    .editor {
+    .editor-terminal-container {
         flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .editor {
+        flex: 0.8; /* 80% of the height */
         overflow: auto;
         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
         font-size: 14px;
@@ -168,6 +175,83 @@
         tab-size: 4;
         padding: 0;
         position: relative;
+    }
+
+    .terminal-area {
+        flex: 0.2; /* 20% of the height */
+        display: flex;
+        flex-direction: column;
+        background-color: #1e1e1e;
+        border-top: 1px solid var(--editor-widget-border);
+        overflow: hidden;
+    }
+
+    .terminal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0 10px;
+        height: 30px;
+        background-color: var(--editor-widget-bg);
+        border-bottom: 1px solid var(--editor-widget-border);
+        color: var(--editor-text);
+        font-size: 12px;
+    }
+
+    .terminal-actions {
+        display: flex;
+        gap: 5px;
+    }
+
+    .terminal-action-btn {
+        background: none;
+        border: none;
+        color: var(--editor-text);
+        cursor: pointer;
+        padding: 2px 5px;
+        font-size: 12px;
+        border-radius: 3px;
+    }
+
+    .terminal-action-btn:hover:not(:disabled) {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .terminal-action-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .terminal-output {
+        flex: 1;
+        padding: 10px;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #f0f0f0;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .terminal-welcome {
+        color: #888;
+        font-style: italic;
+    }
+
+    .terminal-command {
+        color: #569cd6;
+        margin-bottom: 5px;
+    }
+
+    .terminal-stdout {
+        color: #f0f0f0;
+        margin-bottom: 10px;
+    }
+
+    .terminal-stderr {
+        color: #f14c4c;
+        margin-bottom: 10px;
     }
 
     .editor textarea {
@@ -810,36 +894,63 @@
                 {% endif %}
             </div>
 
-            <!-- Editor area -->
-            <div class="editor" id="editor-area">
-                {% if file_content is not None %}
-                    <form id="editor-form" method="post" action="{% url 'file_save' project.pk %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="file_path" value="{{ current_file.path }}">
-                        <textarea id="editor-textarea" name="file_content" spellcheck="false">{{ file_content }}</textarea>
-                    </form>
-                {% else %}
-                    <div class="welcome-screen">
-                        <h2>Welcome to the {{ project.title }} Code Editor</h2>
-                        <p>Select a file from the explorer to start editing, or create a new file.</p>
+            <!-- Editor and Terminal area -->
+            <div class="editor-terminal-container">
+                <!-- Editor area -->
+                <div class="editor" id="editor-area">
+                    {% if file_content is not None %}
+                        <form id="editor-form" method="post" action="{% url 'file_save' project.pk %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="file_path" value="{{ current_file.path }}">
+                            <textarea id="editor-textarea" name="file_content" spellcheck="false">{{ file_content }}</textarea>
+                        </form>
+                    {% else %}
+                        <div class="welcome-screen">
+                            <h2>Welcome to the {{ project.title }} Code Editor</h2>
+                            <p>Select a file from the explorer to start editing, or create a new file.</p>
 
-                        {% if docker_available %}
-                            {% if container_running %}
-                                <div class="container-status running">
-                                    <i class="bi bi-check-circle"></i> Container is running. Your code changes will be available to the container.
-                                </div>
+                            {% if docker_available %}
+                                {% if container_running %}
+                                    <div class="container-status running">
+                                        <i class="bi bi-check-circle"></i> Container is running. Your code changes will be available to the container.
+                                    </div>
+                                {% else %}
+                                    <div class="container-status stopped">
+                                        <i class="bi bi-exclamation-circle"></i> Container is not running. Start the container to run your code.
+                                    </div>
+                                {% endif %}
                             {% else %}
-                                <div class="container-status stopped">
-                                    <i class="bi bi-exclamation-circle"></i> Container is not running. Start the container to run your code.
+                                <div class="container-status not-available">
+                                    <i class="bi bi-x-circle"></i> Docker is not available. Please make sure Docker is running.
                                 </div>
                             {% endif %}
-                        {% else %}
-                            <div class="container-status not-available">
-                                <i class="bi bi-x-circle"></i> Docker is not available. Please make sure Docker is running.
-                            </div>
-                        {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Terminal area -->
+                <div class="terminal-area" id="terminal-area">
+                    <div class="terminal-header">
+                        <span>Terminal</span>
+                        <div class="terminal-actions">
+                            <button id="run-file-btn" class="terminal-action-btn" title="Run Current File" {% if not current_file or not container_running %}disabled{% endif %}>
+                                <i class="bi bi-play-fill"></i> Run
+                            </button>
+                            <button id="clear-terminal-btn" class="terminal-action-btn" title="Clear Terminal">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
                     </div>
-                {% endif %}
+                    <div class="terminal-output" id="terminal-output">
+                        <div class="terminal-welcome">
+                            {% if container_running %}
+                                <p>Terminal ready. Click "Run" to execute the current file.</p>
+                            {% else %}
+                                <p>Container is not running. Start the container to run your code.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Status bar removed -->
@@ -984,6 +1095,112 @@
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
             saveFile();
+        } else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            // Ctrl+Enter to run the current file
+            e.preventDefault();
+            runCurrentFile();
+        }
+    });
+
+    // Terminal functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const runFileBtn = document.getElementById('run-file-btn');
+        const clearTerminalBtn = document.getElementById('clear-terminal-btn');
+        const terminalOutput = document.getElementById('terminal-output');
+
+        // Run current file
+        if (runFileBtn) {
+            runFileBtn.addEventListener('click', function() {
+                runCurrentFile();
+            });
+        }
+
+        // Clear terminal
+        if (clearTerminalBtn) {
+            clearTerminalBtn.addEventListener('click', function() {
+                clearTerminal();
+            });
+        }
+
+        // Function to run the current file
+        window.runCurrentFile = function() {
+            const currentFile = document.querySelector('.editor-tab.active')?.getAttribute('data-path');
+            if (!currentFile) {
+                addTerminalMessage('No file is currently open.', 'error');
+                return;
+            }
+
+            // Save the file first
+            saveFile();
+
+            // Show running message
+            addTerminalMessage(`Running file: ${currentFile}...`, 'command');
+
+            // Call the API to run the file
+            fetch('{% url "run_file" project.pk %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    file_path: currentFile
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Add command to terminal
+                    addTerminalMessage(`$ ${data.command}`, 'command');
+
+                    // Add stdout if any
+                    if (data.stdout) {
+                        addTerminalMessage(data.stdout, 'stdout');
+                    }
+
+                    // Add stderr if any
+                    if (data.stderr) {
+                        addTerminalMessage(data.stderr, 'stderr');
+                    }
+
+                    // Add completion message
+                    if (data.return_code === 0) {
+                        addTerminalMessage(`Process completed with exit code 0`, 'success');
+                    } else {
+                        addTerminalMessage(`Process completed with exit code ${data.return_code}`, 'error');
+                    }
+                } else {
+                    // Add error message
+                    addTerminalMessage(`Error: ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                // Add error message
+                addTerminalMessage(`Error: ${error.message}`, 'error');
+            });
+        };
+
+        // Function to add a message to the terminal
+        function addTerminalMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `terminal-${type}`;
+            messageDiv.textContent = message;
+
+            terminalOutput.appendChild(messageDiv);
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        // Function to clear the terminal
+        function clearTerminal() {
+            terminalOutput.innerHTML = `
+                <div class="terminal-welcome">
+                    {% if container_running %}
+                        <p>Terminal ready. Click "Run" to execute the current file.</p>
+                    {% else %}
+                        <p>Container is not running. Start the container to run your code.</p>
+                    {% endif %}
+                </div>
+            `;
         }
     });
 

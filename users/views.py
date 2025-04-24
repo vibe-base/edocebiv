@@ -859,3 +859,54 @@ def chat_history(request, pk):
             'status': 'error',
             'message': str(e)
         }, status=500)
+
+
+@login_required
+@require_POST
+@csrf_exempt
+def run_file(request, pk):
+    """Run a file in the project's container."""
+    project = get_object_or_404(Project, pk=pk, user=request.user)
+
+    # Get the user profile
+    user_profile, created = UserProfile.objects.get_or_create(user=request.user)
+
+    try:
+        # Parse the request body
+        data = json.loads(request.body)
+        file_path = data.get('file_path')
+
+        if not file_path:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'No file path provided.'
+            })
+
+        # Create the MCP instance
+        from .file_operations import FileOperations
+        mcp = FileOperations(project, request.user)
+
+        # Run the file
+        result = mcp.run_file(file_path)
+
+        # Return the result
+        return JsonResponse({
+            'status': result['status'],
+            'message': result['message'],
+            'command': result.get('command', ''),
+            'stdout': result.get('stdout', ''),
+            'stderr': result.get('stderr', ''),
+            'return_code': result.get('return_code', -1)
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Invalid JSON in request body.'
+        })
+    except Exception as e:
+        logger.exception(f"Error running file: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error running file: {str(e)}'
+        })
