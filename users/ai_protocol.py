@@ -6,8 +6,11 @@ This module provides tools for the AI assistant to interact with the codebase.
 import os
 import re
 import json
+import logging
 from django.shortcuts import get_object_or_404
 from .models import Project
+
+logger = logging.getLogger(__name__)
 
 class AIProtocol:
     """Protocol for AI to interact with the codebase."""
@@ -66,10 +69,15 @@ class AIProtocol:
         Returns:
             dict: Result of the operation.
         """
+        logger.info(f"Creating file: {file_path} in project directory: {self.data_dir}")
+
         try:
             # Security check: make sure the file is within the project directory
             full_path = os.path.join(self.data_dir, file_path)
+            logger.info(f"Full path for new file: {full_path}")
+
             if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
+                logger.error(f"Security check failed: {full_path} is outside project directory {self.data_dir}")
                 return {
                     'status': 'error',
                     'message': 'Invalid file path. The file must be within the project directory.'
@@ -77,25 +85,39 @@ class AIProtocol:
 
             # Check if the file already exists
             if os.path.exists(full_path):
+                logger.warning(f"File already exists: {full_path}")
                 return {
                     'status': 'error',
                     'message': f'File {file_path} already exists.'
                 }
 
             # Create directory if it doesn't exist
-            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            dir_path = os.path.dirname(full_path)
+            logger.info(f"Creating directory if needed: {dir_path}")
+            os.makedirs(dir_path, exist_ok=True)
 
             # Write the file
+            logger.info(f"Writing content to file: {full_path}")
             with open(full_path, 'w') as f:
                 f.write(content)
 
-            return {
-                'status': 'success',
-                'message': f'File {file_path} created successfully.',
-                'file_path': file_path
-            }
+            # Verify the file was created
+            if os.path.exists(full_path):
+                logger.info(f"File created successfully: {full_path}")
+                return {
+                    'status': 'success',
+                    'message': f'File {file_path} created successfully.',
+                    'file_path': file_path
+                }
+            else:
+                logger.error(f"File creation verification failed: {full_path} does not exist after write operation")
+                return {
+                    'status': 'error',
+                    'message': f'File {file_path} could not be verified after creation.'
+                }
 
         except Exception as e:
+            logger.exception(f"Error creating file {file_path}: {str(e)}")
             return {
                 'status': 'error',
                 'message': f'Error creating file: {str(e)}'

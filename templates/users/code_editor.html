@@ -1207,29 +1207,47 @@
 
                     // Handle tool results
                     if (data.tool_results && data.tool_results.length > 0) {
+                        console.log("Tool results received:", data.tool_results);
+
                         // Check if any file operations were performed
                         const fileOperations = data.tool_results.filter(result =>
                             ['create_file', 'update_file', 'delete_file'].includes(result.tool) &&
                             result.result.status === 'success'
                         );
 
+                        console.log("File operations:", fileOperations);
+
                         // If files were modified, refresh the file explorer
                         if (fileOperations.length > 0) {
-                            refreshFileExplorer();
+                            // Add a small delay to ensure file system operations are complete
+                            setTimeout(() => {
+                                console.log("Refreshing file explorer...");
+                                refreshFileExplorer();
 
-                            // If the current file was updated, reload it
-                            const currentFilePath = document.querySelector('.editor-tab.active')?.getAttribute('data-path');
-                            if (currentFilePath) {
-                                const updatedFile = fileOperations.find(op =>
-                                    op.result.file_path === currentFilePath &&
-                                    ['create_file', 'update_file'].includes(op.tool)
-                                );
+                                // If a file was created, try to open it
+                                const createdFiles = fileOperations.filter(op => op.tool === 'create_file');
+                                if (createdFiles.length > 0) {
+                                    const lastCreatedFile = createdFiles[createdFiles.length - 1];
+                                    const filePath = lastCreatedFile.result.file_path;
+                                    console.log("Opening newly created file:", filePath);
+                                    openFile(filePath);
+                                } else {
+                                    // If the current file was updated, reload it
+                                    const currentFilePath = document.querySelector('.editor-tab.active')?.getAttribute('data-path');
+                                    if (currentFilePath) {
+                                        const updatedFile = fileOperations.find(op =>
+                                            op.result.file_path === currentFilePath &&
+                                            ['create_file', 'update_file'].includes(op.tool)
+                                        );
 
-                                if (updatedFile) {
-                                    // Reload the file content
-                                    openFile(currentFilePath);
+                                        if (updatedFile) {
+                                            // Reload the file content
+                                            console.log("Reloading updated file:", currentFilePath);
+                                            openFile(currentFilePath);
+                                        }
+                                    }
                                 }
-                            }
+                            }, 500); // 500ms delay
                         }
                     }
                 } else {
