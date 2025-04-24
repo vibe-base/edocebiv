@@ -660,6 +660,7 @@
         font-size: 12px;
         overflow-x: auto;
         white-space: pre;
+        position: relative;
     }
 
     .chat-tool-result.success {
@@ -668,6 +669,18 @@
 
     .chat-tool-result.error {
         border-left-color: #f44336;
+    }
+
+    .chat-tool-result::before {
+        content: attr(data-tool-type);
+        position: absolute;
+        top: -8px;
+        right: 10px;
+        background-color: var(--editor-widget-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+        color: #999;
     }
 
     .chat-loading {
@@ -1058,30 +1071,46 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'chat-message-content';
 
-            // Process markdown-like code blocks
-            if (sender === 'assistant' && content.includes('```')) {
-                let parts = content.split(/```(?:(\w+)\n)?/);
-                let processedContent = '';
+            // Check if content contains HTML (from tool results)
+            if (sender === 'assistant' && (content.includes('<div class="chat-tool-result') || content.includes('```'))) {
+                // Process content with both HTML and code blocks
 
-                for (let i = 0; i < parts.length; i++) {
-                    if (i % 2 === 0) {
-                        // Regular text - convert newlines to <br> tags
-                        processedContent += parts[i].replace(/\n/g, '<br>');
-                    } else {
-                        // Code block
-                        const language = parts[i-1] || '';
-                        const code = parts[i+1] || '';
-                        i++; // Skip the next part which is the code content
+                // First, handle any HTML tool results that might be present
+                // We'll temporarily replace them with placeholders to avoid conflicts with markdown processing
+                const toolResultsPlaceholders = [];
+                let processedContent = content.replace(/<div class="chat-tool-result.*?<\/div>/gs, (match) => {
+                    const placeholder = `__TOOL_RESULT_${toolResultsPlaceholders.length}__`;
+                    toolResultsPlaceholders.push(match);
+                    return placeholder;
+                });
 
-                        // Check if it's a tool result
-                        if (language === '' && code.trim().startsWith('# Tool Result:')) {
-                            const resultStatus = code.includes('SUCCESS') ? 'success' : 'error';
-                            processedContent += `<div class="chat-tool-result ${resultStatus}">${code}</div>`;
+                // Now process markdown code blocks
+                if (processedContent.includes('```')) {
+                    let parts = processedContent.split(/```(?:(\w+)\n)?/);
+                    processedContent = '';
+
+                    for (let i = 0; i < parts.length; i++) {
+                        if (i % 2 === 0) {
+                            // Regular text - convert newlines to <br> tags
+                            processedContent += parts[i].replace(/\n/g, '<br>');
                         } else {
+                            // Code block
+                            const language = parts[i-1] || '';
+                            const code = parts[i+1] || '';
+                            i++; // Skip the next part which is the code content
+
                             processedContent += `<div class="chat-code-block">${code}</div>`;
                         }
                     }
+                } else {
+                    // No code blocks, just convert newlines
+                    processedContent = processedContent.replace(/\n/g, '<br>');
                 }
+
+                // Now put back the tool results
+                toolResultsPlaceholders.forEach((toolResult, index) => {
+                    processedContent = processedContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
+                });
 
                 contentDiv.innerHTML = processedContent;
             } else {

@@ -616,16 +616,61 @@ Available tools:
 - list_files: List files in a directory
   Arguments: directory_path (optional, defaults to project root)
 
-Example of using the create_file tool:
+Examples of using tools:
+
+1. To create a new file:
 ```tool
 {
   "name": "create_file",
   "arguments": {
     "file_path": "example.py",
-    "content": "print('Hello, world!')"
+    "content": "def hello():\\n    print('Hello, world!')"
   }
 }
 ```
+
+2. To read an existing file:
+```tool
+{
+  "name": "read_file",
+  "arguments": {
+    "file_path": "example.py"
+  }
+}
+```
+
+3. To update a file:
+```tool
+{
+  "name": "update_file",
+  "arguments": {
+    "file_path": "example.py",
+    "content": "def hello():\\n    print('Hello, updated world!')"
+  }
+}
+```
+
+4. To list files in a directory:
+```tool
+{
+  "name": "list_files",
+  "arguments": {
+    "directory_path": ""
+  }
+}
+```
+
+5. To delete a file:
+```tool
+{
+  "name": "delete_file",
+  "arguments": {
+    "file_path": "example.py"
+  }
+}
+```
+
+When a user asks you to create or modify files, use these tools to help them. Always use the tools when appropriate rather than just describing what changes should be made.
 
 Provide concise, helpful responses focused on coding assistance.
 """
