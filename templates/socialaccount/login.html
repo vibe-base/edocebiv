@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Sign In" %} - Edocebiv{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0 text-center">{% trans "Sign In" %} via {{ provider.name }}</h3>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        {% if provider.name == 'Google' %}
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google Logo" width="50" height="50">
+                        {% elif provider.name == 'Facebook' %}
+                            <i class="bi bi-facebook" style="font-size: 3rem; color: #1877F2;"></i>
+                        {% elif provider.name == 'Twitter' %}
+                            <i class="bi bi-twitter" style="font-size: 3rem; color: #1DA1F2;"></i>
+                        {% elif provider.name == 'GitHub' %}
+                            <i class="bi bi-github" style="font-size: 3rem;"></i>
+                        {% else %}
+                            <i class="bi bi-person-circle" style="font-size: 3rem;"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <p class="text-center mb-4">
+                        {% blocktrans with provider_name=provider.name site_name=site.name %}You are about to sign in to {{ site_name }} using your {{ provider_name }} account.{% endblocktrans %}
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <p class="mb-0">
+                            <i class="bi bi-info-circle"></i> 
+                            {% blocktrans with provider_name=provider.name %}This secure process is handled by {{ provider_name }}. We will not have access to your {{ provider_name }} password.{% endblocktrans %}
+                        </p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn 
+                                {% if provider.name == 'Google' %}btn-danger{% elif provider.name == 'Facebook' %}btn-primary{% elif provider.name == 'Twitter' %}btn-info{% elif provider.name == 'GitHub' %}btn-dark{% else %}btn-secondary{% endif %}">
+                                {% if provider.name == 'Google' %}
+                                    <i class="bi bi-google me-2"></i>
+                                {% elif provider.name == 'Facebook' %}
+                                    <i class="bi bi-facebook me-2"></i>
+                                {% elif provider.name == 'Twitter' %}
+                                    <i class="bi bi-twitter me-2"></i>
+                                {% elif provider.name == 'GitHub' %}
+                                    <i class="bi bi-github me-2"></i>
+                                {% else %}
+                                    <i class="bi bi-box-arrow-in-right me-2"></i>
+                                {% endif %}
+                                {% trans "Continue with" %} {{ provider.name }}
+                            </button>
+                            <a href="{% url 'account_login' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> {% trans "Back to Login Options" %}
+                            </a>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center text-muted">
+                    <small>{% trans "By continuing, you agree to our Terms of Service and Privacy Policy." %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

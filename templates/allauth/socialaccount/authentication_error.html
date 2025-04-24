@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Authentication Error" %} - Edocebiv{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="card-title mb-0 text-center">{% trans "Authentication Error" %}</h3>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 3rem;"></i>
+                    </div>
+                    
+                    <h4 class="mb-3">{% trans "Oops! Something went wrong." %}</h4>
+                    
+                    <p>
+                        {% trans "We encountered an error while trying to authenticate with your social account." %}
+                    </p>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'account_login' %}" class="btn btn-primary">
+                            <i class="bi bi-arrow-left"></i> {% trans "Back to Login" %}
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer text-center text-muted">
+                    <small>{% trans "If this problem persists, please contact support." %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

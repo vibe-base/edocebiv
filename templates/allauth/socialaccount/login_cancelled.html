@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Login Cancelled" %} - Edocebiv{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="card-title mb-0 text-center">{% trans "Login Cancelled" %}</h3>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-x-circle text-warning" style="font-size: 3rem;"></i>
+                    </div>
+                    
+                    <p>
+                        {% trans "You cancelled the sign in process." %}
+                    </p>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'account_login' %}" class="btn btn-primary">
+                            <i class="bi bi-arrow-left"></i> {% trans "Back to Login" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
