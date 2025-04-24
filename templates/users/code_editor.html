@@ -382,7 +382,14 @@
         border-bottom: 1px solid var(--editor-widget-border);
         overflow-x: auto;
         white-space: nowrap;
-        height: 35px;
+        height: 45px; /* Increased from 35px to 45px */
+        scrollbar-width: none; /* Hide scrollbar for Firefox */
+        -ms-overflow-style: none; /* Hide scrollbar for IE and Edge */
+    }
+
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    .editor-tabs::-webkit-scrollbar {
+        display: none;
     }
 
     .editor-tab {
@@ -392,8 +399,8 @@
         cursor: pointer;
         display: flex;
         align-items: center;
-        max-width: 150px;
-        height: 35px;
+        max-width: 200px; /* Increased from 150px to 200px */
+        height: 45px; /* Increased from 35px to 45px */
         font-size: 13px;
     }
 
@@ -405,13 +412,15 @@
 
     .editor-tab i {
         margin-right: 5px;
-        font-size: 14px;
+        font-size: 16px; /* Increased from 14px to 16px */
     }
 
     .editor-tab-name {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        font-size: 14px; /* Increased from 13px (inherited) to 14px */
+        padding: 0 5px; /* Added padding for better spacing */
     }
 
     .editor-tab-close {
