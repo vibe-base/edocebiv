@@ -169,11 +169,14 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        min-height: 0; /* Important for proper flexbox behavior */
     }
 
     .editor {
-        flex: 0.8; /* 80% of the height */
-        overflow: auto;
+        flex: 1; /* Take all available space */
+        min-height: 0; /* Important for proper flexbox behavior */
+        display: flex;
+        flex-direction: column;
         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
         font-size: 14px;
         line-height: 1.5;
@@ -182,13 +185,39 @@
         position: relative;
     }
 
+    .terminal-resize-handle {
+        height: 5px;
+        background-color: var(--editor-widget-bg);
+        cursor: ns-resize;
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .terminal-resize-handle:hover {
+        background-color: #007acc;
+    }
+
+    .terminal-resize-handle::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: 30px;
+        height: 3px;
+        background-color: rgba(255, 255, 255, 0.3);
+        border-radius: 1px;
+    }
+
     .terminal-area {
-        flex: 0.2; /* 20% of the height */
+        height: 150px; /* Fixed height for terminal */
+        min-height: 100px; /* Minimum height */
+        max-height: 50vh; /* Maximum height - 50% of viewport height */
         display: flex;
         flex-direction: column;
         background-color: #1e1e1e;
-        border-top: 1px solid var(--editor-widget-border);
         overflow: hidden;
+        flex-shrink: 0; /* Prevent terminal from shrinking */
     }
 
     .terminal-header {
@@ -259,7 +288,7 @@
         margin-bottom: 10px;
     }
 
-    .editor textarea {
+    .editor textarea, #editor-textarea {
         width: 100%;
         height: 100%;
         background-color: var(--editor-bg);
@@ -271,6 +300,10 @@
         line-height: inherit;
         padding: 10px;
         box-sizing: border-box;
+        flex: 1;
+        overflow: auto; /* Allow scrolling within the textarea if needed */
+        min-height: 100%; /* Ensure it fills the editor area */
+        outline: none;
     }
 
     .editor textarea:focus {
@@ -962,7 +995,7 @@
                 <!-- Editor area -->
                 <div class="editor" id="editor-area">
                     {% if file_content is not None %}
-                        <form id="editor-form" method="post" action="{% url 'file_save' project.pk %}">
+                        <form id="editor-form" method="post" action="{% url 'file_save' project.pk %}" style="display: flex; flex-direction: column; height: 100%; flex: 1;">
                             {% csrf_token %}
                             <input type="hidden" name="file_path" value="{{ current_file.path }}">
                             <textarea id="editor-textarea" name="file_content" spellcheck="false">{{ file_content }}</textarea>
@@ -990,6 +1023,9 @@
                         </div>
                     {% endif %}
                 </div>
+
+                <!-- Terminal resize handle -->
+                <div class="terminal-resize-handle" id="terminal-resize-handle"></div>
 
                 <!-- Terminal area -->
                 <div class="terminal-area" id="terminal-area">
@@ -1248,6 +1284,45 @@
         const runFileBtn = document.getElementById('run-file-btn');
         const clearTerminalBtn = document.getElementById('clear-terminal-btn');
         const terminalOutput = document.getElementById('terminal-output');
+        const terminalArea = document.getElementById('terminal-area');
+        const terminalResizeHandle = document.getElementById('terminal-resize-handle');
+
+        // Terminal resize functionality
+        let isResizing = false;
+        let startY, startHeight;
+
+        terminalResizeHandle.addEventListener('mousedown', function(e) {
+            isResizing = true;
+            startY = e.clientY;
+            startHeight = parseInt(document.defaultView.getComputedStyle(terminalArea).height, 10);
+
+            // Add event listeners for mouse movement and release
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+
+            // Prevent text selection during resize
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+
+        function handleMouseMove(e) {
+            if (!isResizing) return;
+
+            // Calculate new height (moving up decreases terminal height)
+            const newHeight = startHeight - (e.clientY - startY);
+
+            // Apply min and max constraints
+            if (newHeight >= 100 && newHeight <= window.innerHeight * 0.5) {
+                terminalArea.style.height = newHeight + 'px';
+            }
+        }
+
+        function handleMouseUp() {
+            isResizing = false;
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.userSelect = '';
+        }
 
         // Save file button
         if (saveFileBtn) {
