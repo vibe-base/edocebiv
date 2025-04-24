@@ -8,10 +8,13 @@ from django.views.decorators.http import require_POST
 import os
 import shutil
 import json
+import logging
 import requests
 from .models import Project, UserProfile, ChatMessage
 from .forms import ProjectForm, UserProfileForm
 from .docker_utils import docker_manager
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def project_list(request):
@@ -585,9 +588,9 @@ def chat_with_openai(request, pk):
         # Reverse the order to have oldest first
         recent_messages = list(reversed(recent_messages))
 
-        # Create the MCP instance
-        from .file_operations_mcp import FileOperationsMCP
-        mcp = FileOperationsMCP(project, request.user)
+        # Create the OpenAI MCP instance
+        from .file_operations_openai_mcp import FileOperationsOpenAIMCP
+        mcp = FileOperationsOpenAIMCP(project, request.user)
 
         # Prepare the system message with context about the project
         system_message = f"You are an AI coding assistant helping with a project named '{project.title}'. "
@@ -595,11 +598,10 @@ def chat_with_openai(request, pk):
         if project.description:
             system_message += f"Project description: {project.description}. "
 
-        # Add the MCP system message
-        system_message += mcp.get_system_message()
-
         # Add additional guidance
         system_message += """
+You can help the user by creating, reading, updating, and deleting files in their project.
+Use the available tools when the user asks you to perform file operations.
 Provide concise, helpful responses focused on coding assistance.
 """
 
@@ -623,18 +625,25 @@ Provide concise, helpful responses focused on coding assistance.
             file_message = f"Here's the content of the file I'm working on ({current_file}):\n\n```\n{current_file_content}\n```"
             messages.insert(1, {"role": "user", "content": file_message})
 
-        # Make the API request to OpenAI
+        # Make the API request to OpenAI with tools
         headers = {
             "Authorization": f"Bearer {user_profile.openai_api_key}",
             "Content-Type": "application/json"
         }
 
+        # Get tool definitions from MCP
+        tools = mcp.get_tool_definitions()
+
         payload = {
             "model": "gpt-3.5-turbo",
             "messages": messages,
+            "tools": tools,
+            "tool_choice": "auto",  # Let the model decide when to use tools
             "temperature": 0.7,
             "max_tokens": 1500
         }
+
+        logger.info(f"Sending request to OpenAI with {len(tools)} tools")
 
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -652,10 +661,56 @@ Provide concise, helpful responses focused on coding assistance.
 
         # Extract the assistant's response
         response_data = response.json()
-        assistant_message = response_data['choices'][0]['message']['content']
+        assistant_message = response_data['choices'][0]['message']
 
-        # Process the message with the MCP
-        processed_message, tool_results = mcp.process_message(assistant_message)
+        # Initialize variables
+        content = assistant_message.get('content', '')
+        tool_calls = assistant_message.get('tool_calls', [])
+        tool_results = []
+
+        # Process any tool calls
+        if tool_calls:
+            logger.info(f"Received {len(tool_calls)} tool calls from OpenAI")
+
+            for tool_call in tool_calls:
+                function = tool_call.get('function', {})
+                tool_name = function.get('name')
+                arguments = function.get('arguments')
+
+                logger.info(f"Executing tool call: {tool_name} with arguments: {arguments}")
+
+                # Execute the tool
+                result = mcp.execute_tool({
+                    'name': tool_name,
+                    'arguments': arguments
+                })
+
+                # Store the result
+                tool_results.append({
+                    'tool': tool_name,
+                    'arguments': json.loads(arguments),
+                    'result': result
+                })
+
+                # Add tool result to the content
+                tool_result_text = f"\n\n<div class=\"chat-tool-result {result.get('status', 'unknown')}\" data-tool-type=\"{tool_name}\">\n"
+                tool_result_text += f"# Tool Result: {result.get('status', 'unknown').upper()}\n"
+                tool_result_text += f"# Tool: {tool_name}\n\n"
+                tool_result_text += f"{result.get('message', 'No message provided')}\n"
+
+                # Add file path if available
+                if 'file_path' in result:
+                    tool_result_text += f"\nFile: {result['file_path']}"
+
+                tool_result_text += "</div>\n"
+
+                if content:
+                    content += tool_result_text
+                else:
+                    content = tool_result_text
+
+        # Use the processed content
+        processed_message = content
 
         # Save the assistant's response to the database
         ChatMessage.objects.create(
