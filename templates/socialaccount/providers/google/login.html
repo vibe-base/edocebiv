@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Sign In with Google - Edocebiv{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0 text-center">Sign In with Google</h3>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google Logo" width="50" height="50">
+                    </div>
+                    
+                    <p class="text-center mb-4">
+                        You're about to sign in to <strong>Edocebiv</strong> using your Google account.
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <p class="mb-0">
+                            <i class="bi bi-info-circle"></i> 
+                            This secure process is handled by Google. We will not have access to your Google password.
+                        </p>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-google me-2"></i> Continue with Google
+                            </button>
+                            <a href="{% url 'account_login' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Login Options
+                            </a>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-center text-muted">
+                    <small>By continuing, you agree to our Terms of Service and Privacy Policy.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
