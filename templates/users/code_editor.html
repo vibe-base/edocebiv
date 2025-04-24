@@ -1,0 +1,862 @@
+{% extends 'base.html' %}
+
+{% block title %}Code Editor - {{ project.title }} - Edocebiv{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* VS Code-like styling */
+    :root {
+        --editor-bg: #1e1e1e;
+        --sidebar-bg: #252526;
+        --sidebar-item: #2d2d2d;
+        --sidebar-hover: #37373d;
+        --editor-text: #d4d4d4;
+        --editor-line-number: #858585;
+        --editor-cursor: #a6a6a6;
+        --editor-selection: #264f78;
+        --editor-active-line: #282828;
+        --editor-widget-bg: #252526;
+        --editor-widget-border: #454545;
+    }
+    
+    body {
+        overflow: hidden;
+    }
+    
+    .editor-container {
+        display: flex;
+        height: calc(100vh - 56px);
+        background-color: var(--editor-bg);
+        color: var(--editor-text);
+    }
+    
+    .sidebar {
+        width: 250px;
+        background-color: var(--sidebar-bg);
+        overflow-y: auto;
+        border-right: 1px solid var(--editor-widget-border);
+    }
+    
+    .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .editor {
+        flex: 1;
+        padding: 10px;
+        overflow: auto;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 1.5;
+        tab-size: 4;
+    }
+    
+    .editor textarea {
+        width: 100%;
+        height: 100%;
+        background-color: var(--editor-bg);
+        color: var(--editor-text);
+        border: none;
+        resize: none;
+        font-family: inherit;
+        font-size: inherit;
+        line-height: inherit;
+        padding: 10px;
+    }
+    
+    .editor textarea:focus {
+        outline: none;
+    }
+    
+    .status-bar {
+        height: 22px;
+        background-color: var(--editor-widget-bg);
+        border-top: 1px solid var(--editor-widget-border);
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        font-size: 12px;
+        color: var(--editor-text);
+    }
+    
+    .file-explorer {
+        padding: 10px 0;
+    }
+    
+    .file-explorer-header {
+        padding: 5px 10px;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .file-explorer-actions {
+        display: flex;
+        gap: 5px;
+    }
+    
+    .file-explorer-actions button {
+        background: none;
+        border: none;
+        color: var(--editor-text);
+        cursor: pointer;
+        padding: 0;
+        font-size: 14px;
+    }
+    
+    .file-explorer-actions button:hover {
+        color: white;
+    }
+    
+    .file-item {
+        padding: 3px 10px 3px 20px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .file-item:hover {
+        background-color: var(--sidebar-hover);
+    }
+    
+    .file-item.active {
+        background-color: var(--editor-selection);
+    }
+    
+    .file-item i {
+        margin-right: 5px;
+    }
+    
+    .folder-item {
+        padding: 3px 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+    }
+    
+    .folder-item:hover {
+        background-color: var(--sidebar-hover);
+    }
+    
+    .folder-item i {
+        margin-right: 5px;
+    }
+    
+    .folder-contents {
+        margin-left: 15px;
+    }
+    
+    .editor-tabs {
+        background-color: var(--sidebar-bg);
+        display: flex;
+        border-bottom: 1px solid var(--editor-widget-border);
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    .editor-tab {
+        padding: 5px 10px;
+        background-color: var(--sidebar-item);
+        border-right: 1px solid var(--editor-widget-border);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        max-width: 150px;
+    }
+    
+    .editor-tab.active {
+        background-color: var(--editor-bg);
+    }
+    
+    .editor-tab i {
+        margin-right: 5px;
+    }
+    
+    .editor-tab-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .editor-tab-close {
+        margin-left: 5px;
+        opacity: 0.5;
+    }
+    
+    .editor-tab:hover .editor-tab-close {
+        opacity: 1;
+    }
+    
+    .welcome-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--editor-line-number);
+    }
+    
+    .welcome-screen h2 {
+        margin-bottom: 20px;
+    }
+    
+    .welcome-screen p {
+        margin-bottom: 10px;
+        max-width: 600px;
+        text-align: center;
+    }
+    
+    .container-status {
+        margin-top: 20px;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    
+    .container-status.running {
+        background-color: rgba(0, 128, 0, 0.2);
+        border: 1px solid rgba(0, 128, 0, 0.3);
+    }
+    
+    .container-status.stopped {
+        background-color: rgba(128, 128, 128, 0.2);
+        border: 1px solid rgba(128, 128, 128, 0.3);
+    }
+    
+    .container-status.not-available {
+        background-color: rgba(255, 0, 0, 0.2);
+        border: 1px solid rgba(255, 0, 0, 0.3);
+    }
+    
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-content {
+        background-color: var(--sidebar-bg);
+        margin: 15% auto;
+        padding: 20px;
+        border: 1px solid var(--editor-widget-border);
+        width: 300px;
+        color: var(--editor-text);
+    }
+    
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .modal-close {
+        color: var(--editor-text);
+        font-size: 20px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    
+    .modal-body {
+        margin-bottom: 15px;
+    }
+    
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    
+    .modal input {
+        width: 100%;
+        padding: 5px;
+        margin-bottom: 10px;
+        background-color: var(--editor-bg);
+        color: var(--editor-text);
+        border: 1px solid var(--editor-widget-border);
+    }
+    
+    .modal input:focus {
+        outline: none;
+        border-color: var(--editor-selection);
+    }
+    
+    .modal-btn {
+        padding: 5px 10px;
+        background-color: var(--editor-selection);
+        color: var(--editor-text);
+        border: none;
+        cursor: pointer;
+    }
+    
+    .modal-btn:hover {
+        background-color: #0e639c;
+    }
+    
+    .modal-btn.cancel {
+        background-color: var(--sidebar-item);
+    }
+    
+    .modal-btn.cancel:hover {
+        background-color: var(--sidebar-hover);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="editor-container">
+    <!-- Sidebar with file explorer -->
+    <div class="sidebar">
+        <div class="file-explorer">
+            <div class="file-explorer-header">
+                <span>EXPLORER: {{ project.title }}</span>
+                <div class="file-explorer-actions">
+                    <button onclick="showNewFileModal()" title="New File"><i class="bi bi-file-earmark-plus"></i></button>
+                    <button onclick="showNewFolderModal()" title="New Folder"><i class="bi bi-folder-plus"></i></button>
+                    <button onclick="refreshFileExplorer()" title="Refresh"><i class="bi bi-arrow-clockwise"></i></button>
+                </div>
+            </div>
+            
+            <div id="file-tree">
+                {% include 'users/partials/file_tree.html' with items=directory_structure parent_path="" %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main content area with editor -->
+    <div class="main-content">
+        <!-- Editor tabs -->
+        <div class="editor-tabs" id="editor-tabs">
+            {% if current_file %}
+                <div class="editor-tab active" data-path="{{ current_file.path }}">
+                    <i class="bi bi-file-earmark-code"></i>
+                    <span class="editor-tab-name">{{ current_file.name }}</span>
+                    <span class="editor-tab-close" onclick="closeTab('{{ current_file.path }}')">×</span>
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Editor area -->
+        <div class="editor" id="editor-area">
+            {% if file_content is not None %}
+                <form id="editor-form" method="post" action="{% url 'file_save' project.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="file_path" value="{{ current_file.path }}">
+                    <textarea id="editor-textarea" name="file_content" spellcheck="false">{{ file_content }}</textarea>
+                </form>
+            {% else %}
+                <div class="welcome-screen">
+                    <h2>Welcome to the {{ project.title }} Code Editor</h2>
+                    <p>Select a file from the explorer to start editing, or create a new file.</p>
+                    
+                    {% if docker_available %}
+                        {% if container_running %}
+                            <div class="container-status running">
+                                <i class="bi bi-check-circle"></i> Container is running. Your code changes will be available to the container.
+                            </div>
+                        {% else %}
+                            <div class="container-status stopped">
+                                <i class="bi bi-exclamation-circle"></i> Container is not running. Start the container to run your code.
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="container-status not-available">
+                            <i class="bi bi-x-circle"></i> Docker is not available. Please make sure Docker is running.
+                        </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+        
+        <!-- Status bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                {% if current_file %}
+                    {{ current_file.path }} | {{ current_file.extension|upper }}
+                {% else %}
+                    Ready
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New File Modal -->
+<div id="new-file-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4>New File</h4>
+            <span class="modal-close" onclick="closeModal('new-file-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <input type="text" id="new-file-name" placeholder="File name">
+            <input type="hidden" id="new-file-parent-path" value="">
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn cancel" onclick="closeModal('new-file-modal')">Cancel</button>
+            <button class="modal-btn" onclick="createNewFile()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- New Folder Modal -->
+<div id="new-folder-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4>New Folder</h4>
+            <span class="modal-close" onclick="closeModal('new-folder-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <input type="text" id="new-folder-name" placeholder="Folder name">
+            <input type="hidden" id="new-folder-parent-path" value="">
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn cancel" onclick="closeModal('new-folder-modal')">Cancel</button>
+            <button class="modal-btn" onclick="createNewFolder()">Create</button>
+        </div>
+    </div>
+</div>
+
+<!-- Rename Modal -->
+<div id="rename-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4>Rename</h4>
+            <span class="modal-close" onclick="closeModal('rename-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <input type="text" id="rename-new-name" placeholder="New name">
+            <input type="hidden" id="rename-file-path" value="">
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn cancel" onclick="closeModal('rename-modal')">Cancel</button>
+            <button class="modal-btn" onclick="renameFile()">Rename</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4>Delete</h4>
+            <span class="modal-close" onclick="closeModal('delete-modal')">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete <span id="delete-file-name"></span>?</p>
+            <input type="hidden" id="delete-file-path" value="">
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn cancel" onclick="closeModal('delete-modal')">Cancel</button>
+            <button class="modal-btn" onclick="deleteFile()">Delete</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // File explorer functionality
+    function toggleFolder(element) {
+        const folderContents = element.nextElementSibling;
+        if (folderContents.style.display === 'none') {
+            folderContents.style.display = 'block';
+            element.querySelector('i').classList.remove('bi-folder');
+            element.querySelector('i').classList.add('bi-folder-open');
+        } else {
+            folderContents.style.display = 'none';
+            element.querySelector('i').classList.remove('bi-folder-open');
+            element.querySelector('i').classList.add('bi-folder');
+        }
+    }
+    
+    // Open file in editor
+    function openFile(path) {
+        window.location.href = "{% url 'code_editor' project.pk %}?file=" + encodeURIComponent(path);
+    }
+    
+    // Save file
+    function saveFile() {
+        document.getElementById('editor-form').submit();
+    }
+    
+    // Add keyboard shortcut for saving (Ctrl+S)
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            saveFile();
+        }
+    });
+    
+    // Modal functionality
+    function showModal(modalId) {
+        document.getElementById(modalId).style.display = 'block';
+    }
+    
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
+    
+    function showNewFileModal(parentPath = '') {
+        document.getElementById('new-file-parent-path').value = parentPath;
+        showModal('new-file-modal');
+        document.getElementById('new-file-name').focus();
+    }
+    
+    function showNewFolderModal(parentPath = '') {
+        document.getElementById('new-folder-parent-path').value = parentPath;
+        showModal('new-folder-modal');
+        document.getElementById('new-folder-name').focus();
+    }
+    
+    function showRenameModal(path, currentName) {
+        document.getElementById('rename-file-path').value = path;
+        document.getElementById('rename-new-name').value = currentName;
+        showModal('rename-modal');
+        document.getElementById('rename-new-name').focus();
+        document.getElementById('rename-new-name').select();
+    }
+    
+    function showDeleteModal(path, name) {
+        document.getElementById('delete-file-path').value = path;
+        document.getElementById('delete-file-name').textContent = name;
+        showModal('delete-modal');
+    }
+    
+    // File operations
+    function createNewFile() {
+        const name = document.getElementById('new-file-name').value.trim();
+        const parentPath = document.getElementById('new-file-parent-path').value;
+        
+        if (!name) {
+            alert('Please enter a file name');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('parent_path', parentPath);
+        formData.append('is_directory', 'false');
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch('{% url "file_create" project.pk %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                closeModal('new-file-modal');
+                refreshFileExplorer();
+                // Open the new file
+                openFile(data.item.path);
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error creating file:', error);
+            alert('Error creating file');
+        });
+    }
+    
+    function createNewFolder() {
+        const name = document.getElementById('new-folder-name').value.trim();
+        const parentPath = document.getElementById('new-folder-parent-path').value;
+        
+        if (!name) {
+            alert('Please enter a folder name');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('parent_path', parentPath);
+        formData.append('is_directory', 'true');
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch('{% url "file_create" project.pk %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                closeModal('new-folder-modal');
+                refreshFileExplorer();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error creating folder:', error);
+            alert('Error creating folder');
+        });
+    }
+    
+    function renameFile() {
+        const newName = document.getElementById('rename-new-name').value.trim();
+        const filePath = document.getElementById('rename-file-path').value;
+        
+        if (!newName) {
+            alert('Please enter a new name');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file_path', filePath);
+        formData.append('new_name', newName);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch('{% url "file_rename" project.pk %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                closeModal('rename-modal');
+                refreshFileExplorer();
+                
+                // If the renamed file is currently open, redirect to the new path
+                const currentPath = '{{ current_file.path|default:"" }}';
+                if (currentPath === filePath) {
+                    openFile(data.item.path);
+                }
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error renaming file:', error);
+            alert('Error renaming file');
+        });
+    }
+    
+    function deleteFile() {
+        const filePath = document.getElementById('delete-file-path').value;
+        
+        const formData = new FormData();
+        formData.append('file_path', filePath);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        
+        fetch('{% url "file_delete" project.pk %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                closeModal('delete-modal');
+                refreshFileExplorer();
+                
+                // If the deleted file is currently open, redirect to the editor home
+                const currentPath = '{{ current_file.path|default:"" }}';
+                if (currentPath === filePath) {
+                    window.location.href = "{% url 'code_editor' project.pk %}";
+                }
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting file:', error);
+            alert('Error deleting file');
+        });
+    }
+    
+    function refreshFileExplorer() {
+        window.location.reload();
+    }
+    
+    // Tab functionality
+    function closeTab(path) {
+        window.location.href = "{% url 'code_editor' project.pk %}";
+    }
+    
+    // Context menu for files and folders
+    document.addEventListener('contextmenu', function(e) {
+        const fileItem = e.target.closest('.file-item');
+        const folderItem = e.target.closest('.folder-item');
+        
+        if (fileItem || folderItem) {
+            e.preventDefault();
+            
+            // Remove any existing context menu
+            const existingMenu = document.querySelector('.context-menu');
+            if (existingMenu) {
+                existingMenu.remove();
+            }
+            
+            const contextMenu = document.createElement('div');
+            contextMenu.className = 'context-menu';
+            contextMenu.style.position = 'absolute';
+            contextMenu.style.left = e.pageX + 'px';
+            contextMenu.style.top = e.pageY + 'px';
+            contextMenu.style.backgroundColor = 'var(--sidebar-bg)';
+            contextMenu.style.border = '1px solid var(--editor-widget-border)';
+            contextMenu.style.padding = '5px 0';
+            contextMenu.style.zIndex = '1000';
+            
+            if (fileItem) {
+                const path = fileItem.getAttribute('data-path');
+                const name = fileItem.getAttribute('data-name');
+                
+                const openOption = document.createElement('div');
+                openOption.textContent = 'Open';
+                openOption.style.padding = '5px 10px';
+                openOption.style.cursor = 'pointer';
+                openOption.addEventListener('click', function() {
+                    openFile(path);
+                    contextMenu.remove();
+                });
+                openOption.addEventListener('mouseover', function() {
+                    this.style.backgroundColor = 'var(--sidebar-hover)';
+                });
+                openOption.addEventListener('mouseout', function() {
+                    this.style.backgroundColor = '';
+                });
+                
+                const renameOption = document.createElement('div');
+                renameOption.textContent = 'Rename';
+                renameOption.style.padding = '5px 10px';
+                renameOption.style.cursor = 'pointer';
+                renameOption.addEventListener('click', function() {
+                    showRenameModal(path, name);
+                    contextMenu.remove();
+                });
+                renameOption.addEventListener('mouseover', function() {
+                    this.style.backgroundColor = 'var(--sidebar-hover)';
+                });
+                renameOption.addEventListener('mouseout', function() {
+                    this.style.backgroundColor = '';
+                });
+                
+                const deleteOption = document.createElement('div');
+                deleteOption.textContent = 'Delete';
+                deleteOption.style.padding = '5px 10px';
+                deleteOption.style.cursor = 'pointer';
+                deleteOption.addEventListener('click', function() {
+                    showDeleteModal(path, name);
+                    contextMenu.remove();
+                });
+                deleteOption.addEventListener('mouseover', function() {
+                    this.style.backgroundColor = 'var(--sidebar-hover)';
+                });
+                deleteOption.addEventListener('mouseout', function() {
+                    this.style.backgroundColor = '';
+                });
+                
+                contextMenu.appendChild(openOption);
+                contextMenu.appendChild(renameOption);
+                contextMenu.appendChild(deleteOption);
+            } else if (folderItem) {
+                const path = folderItem.getAttribute('data-path');
+                const name = folderItem.getAttribute('data-name');
+                
+                const newFileOption = document.createElement('div');
+                newFileOption.textContent = 'New File';
+                newFileOption.style.padding = '5px 10px';
+                newFileOption.style.cursor = 'pointer';
+                newFileOption.addEventListener('click', function() {
+                    showNewFileModal(path);
+                    contextMenu.remove();
+                });
+                newFileOption.addEventListener('mouseover', function() {
+                    this.style.backgroundColor = 'var(--sidebar-hover)';
+                });
+                newFileOption.addEventListener('mouseout', function() {
+                    this.style.backgroundColor = '';
+                });
+                
+                const newFolderOption = document.createElement('div');
+                newFolderOption.textContent = 'New Folder';
+                newFolderOption.style.padding = '5px 10px';
+                newFolderOption.style.cursor = 'pointer';
+                newFolderOption.addEventListener('click', function() {
+                    showNewFolderModal(path);
+                    contextMenu.remove();
+                });
+                newFolderOption.addEventListener('mouseover', function() {
+                    this.style.backgroundColor = 'var(--sidebar-hover)';
+                });
+                newFolderOption.addEventListener('mouseout', function() {
+                    this.style.backgroundColor = '';
+                });
+                
+                const renameOption = document.createElement('div');
+                renameOption.textContent = 'Rename';
+                renameOption.style.padding = '5px 10px';
+                renameOption.style.cursor = 'pointer';
+                renameOption.addEventListener('click', function() {
+                    showRenameModal(path, name);
+                    contextMenu.remove();
+                });
+                renameOption.addEventListener('mouseover', function() {
+                    this.style.backgroundColor = 'var(--sidebar-hover)';
+                });
+                renameOption.addEventListener('mouseout', function() {
+                    this.style.backgroundColor = '';
+                });
+                
+                const deleteOption = document.createElement('div');
+                deleteOption.textContent = 'Delete';
+                deleteOption.style.padding = '5px 10px';
+                deleteOption.style.cursor = 'pointer';
+                deleteOption.addEventListener('click', function() {
+                    showDeleteModal(path, name);
+                    contextMenu.remove();
+                });
+                deleteOption.addEventListener('mouseover', function() {
+                    this.style.backgroundColor = 'var(--sidebar-hover)';
+                });
+                deleteOption.addEventListener('mouseout', function() {
+                    this.style.backgroundColor = '';
+                });
+                
+                contextMenu.appendChild(newFileOption);
+                contextMenu.appendChild(newFolderOption);
+                contextMenu.appendChild(renameOption);
+                contextMenu.appendChild(deleteOption);
+            }
+            
+            document.body.appendChild(contextMenu);
+            
+            // Close the context menu when clicking elsewhere
+            document.addEventListener('click', function closeContextMenu() {
+                contextMenu.remove();
+                document.removeEventListener('click', closeContextMenu);
+            });
+        }
+    });
+    
+    // Close context menu when clicking elsewhere or pressing Escape
+    document.addEventListener('click', function(e) {
+        const contextMenu = document.querySelector('.context-menu');
+        if (contextMenu && !contextMenu.contains(e.target)) {
+            contextMenu.remove();
+        }
+    });
+    
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const contextMenu = document.querySelector('.context-menu');
+            if (contextMenu) {
+                contextMenu.remove();
+            }
+        }
+    });
+</script>
+{% endblock %}

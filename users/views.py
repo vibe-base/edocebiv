@@ -3,6 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
 from django.http import JsonResponse
+import os
+import shutil
 from .models import Project, UserProfile
 from .forms import ProjectForm, UserProfileForm
 from .docker_utils import docker_manager
@@ -233,3 +235,295 @@ def container_status(request, pk):
         return JsonResponse({'status': 'error', 'message': 'Failed to get container status'})
 
     return JsonResponse({'status': 'success', 'container_status': status})
+
+@login_required
+def code_editor(request, pk):
+    """View for the code editor interface that resembles Visual Studio Code."""
+    project = get_object_or_404(Project, pk=pk, user=request.user)
+
+    # Get the project's data directory
+    data_dir = project.get_data_directory()
+
+    # Get the list of files in the data directory
+    import os
+
+    # Function to recursively get all files and directories
+    def get_directory_structure(root_path, relative_path=""):
+        items = []
+        full_path = os.path.join(root_path, relative_path)
+
+        try:
+            for item in os.listdir(full_path):
+                item_relative_path = os.path.join(relative_path, item)
+                item_full_path = os.path.join(root_path, item_relative_path)
+
+                is_dir = os.path.isdir(item_full_path)
+
+                # Skip hidden files and directories
+                if item.startswith('.'):
+                    continue
+
+                if is_dir:
+                    children = get_directory_structure(root_path, item_relative_path)
+                    items.append({
+                        'name': item,
+                        'path': item_relative_path,
+                        'is_dir': True,
+                        'children': children
+                    })
+                else:
+                    # Get file size
+                    size = os.path.getsize(item_full_path)
+                    # Format size
+                    if size < 1024:
+                        size_str = f"{size} B"
+                    elif size < 1024 * 1024:
+                        size_str = f"{size / 1024:.1f} KB"
+                    else:
+                        size_str = f"{size / (1024 * 1024):.1f} MB"
+
+                    # Get file extension
+                    _, ext = os.path.splitext(item)
+                    ext = ext.lstrip('.')
+
+                    items.append({
+                        'name': item,
+                        'path': item_relative_path,
+                        'is_dir': False,
+                        'size': size_str,
+                        'extension': ext
+                    })
+        except FileNotFoundError:
+            # If the directory doesn't exist yet, create it
+            os.makedirs(full_path, exist_ok=True)
+        except PermissionError:
+            # Handle permission errors
+            pass
+
+        # Sort items: directories first, then files, both alphabetically
+        return sorted(items, key=lambda x: (not x['is_dir'], x['name'].lower()))
+
+    # Get the directory structure
+    directory_structure = get_directory_structure(data_dir)
+
+    # Check if a file is being viewed
+    file_path = request.GET.get('file')
+    file_content = None
+    current_file = None
+
+    if file_path:
+        try:
+            full_file_path = os.path.join(data_dir, file_path)
+            # Make sure the file is within the project directory (security check)
+            if os.path.commonpath([full_file_path, data_dir]) == data_dir:
+                with open(full_file_path, 'r') as f:
+                    file_content = f.read()
+                current_file = {
+                    'name': os.path.basename(file_path),
+                    'path': file_path,
+                    'extension': os.path.splitext(file_path)[1].lstrip('.')
+                }
+        except (FileNotFoundError, PermissionError, IsADirectoryError, UnicodeDecodeError):
+            file_content = None
+
+    # Check if Docker is available and the container is running
+    docker_available = docker_manager.is_available()
+    container_running = False
+
+    if docker_available and project.container_id:
+        container_status = docker_manager.get_container_status(project)
+        container_running = container_status == 'running'
+
+    return render(request, 'users/code_editor.html', {
+        'project': project,
+        'directory_structure': directory_structure,
+        'file_content': file_content,
+        'current_file': current_file,
+        'docker_available': docker_available,
+        'container_running': container_running,
+        'data_dir': data_dir
+    })
+
+@login_required
+def file_save(request, pk):
+    """Save a file in the project's data directory."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+    project = get_object_or_404(Project, pk=pk, user=request.user)
+    data_dir = project.get_data_directory()
+
+    try:
+        file_path = request.POST.get('file_path')
+        file_content = request.POST.get('file_content')
+
+        if not file_path:
+            return JsonResponse({'status': 'error', 'message': 'File path is required'}, status=400)
+
+        # Security check: make sure the file is within the project directory
+        full_file_path = os.path.join(data_dir, file_path)
+        if os.path.commonpath([full_file_path, data_dir]) != data_dir:
+            return JsonResponse({'status': 'error', 'message': 'Invalid file path'}, status=403)
+
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(full_file_path), exist_ok=True)
+
+        # Write the file
+        with open(full_file_path, 'w') as f:
+            f.write(file_content or '')
+
+        return JsonResponse({'status': 'success', 'message': 'File saved successfully'})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+def file_create(request, pk):
+    """Create a new file or directory in the project's data directory."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+    project = get_object_or_404(Project, pk=pk, user=request.user)
+    data_dir = project.get_data_directory()
+
+    try:
+        parent_path = request.POST.get('parent_path', '')
+        name = request.POST.get('name')
+        is_directory = request.POST.get('is_directory') == 'true'
+
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'Name is required'}, status=400)
+
+        # Create the full path
+        relative_path = os.path.join(parent_path, name) if parent_path else name
+        full_path = os.path.join(data_dir, relative_path)
+
+        # Security check: make sure the file is within the project directory
+        if os.path.commonpath([full_path, data_dir]) != data_dir:
+            return JsonResponse({'status': 'error', 'message': 'Invalid path'}, status=403)
+
+        # Check if the file/directory already exists
+        if os.path.exists(full_path):
+            return JsonResponse({'status': 'error', 'message': 'File or directory already exists'}, status=400)
+
+        if is_directory:
+            # Create directory
+            os.makedirs(full_path, exist_ok=True)
+        else:
+            # Create file
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            with open(full_path, 'w') as f:
+                f.write('')
+
+        return JsonResponse({
+            'status': 'success',
+            'message': f"{'Directory' if is_directory else 'File'} created successfully",
+            'item': {
+                'name': name,
+                'path': relative_path,
+                'is_dir': is_directory,
+                'size': '0 B' if not is_directory else None,
+                'extension': os.path.splitext(name)[1].lstrip('.') if not is_directory else None,
+                'children': [] if is_directory else None
+            }
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+def file_delete(request, pk):
+    """Delete a file or directory in the project's data directory."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+    project = get_object_or_404(Project, pk=pk, user=request.user)
+    data_dir = project.get_data_directory()
+
+    try:
+        file_path = request.POST.get('file_path')
+
+        if not file_path:
+            return JsonResponse({'status': 'error', 'message': 'File path is required'}, status=400)
+
+        # Security check: make sure the file is within the project directory
+        full_path = os.path.join(data_dir, file_path)
+        if os.path.commonpath([full_path, data_dir]) != data_dir:
+            return JsonResponse({'status': 'error', 'message': 'Invalid file path'}, status=403)
+
+        # Check if the file/directory exists
+        if not os.path.exists(full_path):
+            return JsonResponse({'status': 'error', 'message': 'File or directory does not exist'}, status=404)
+
+        import shutil
+
+        if os.path.isdir(full_path):
+            # Delete directory
+            shutil.rmtree(full_path)
+        else:
+            # Delete file
+            os.remove(full_path)
+
+        return JsonResponse({'status': 'success', 'message': 'File or directory deleted successfully'})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+@login_required
+def file_rename(request, pk):
+    """Rename a file or directory in the project's data directory."""
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+    project = get_object_or_404(Project, pk=pk, user=request.user)
+    data_dir = project.get_data_directory()
+
+    try:
+        file_path = request.POST.get('file_path')
+        new_name = request.POST.get('new_name')
+
+        if not file_path or not new_name:
+            return JsonResponse({'status': 'error', 'message': 'File path and new name are required'}, status=400)
+
+        # Security check: make sure the file is within the project directory
+        full_path = os.path.join(data_dir, file_path)
+        if os.path.commonpath([full_path, data_dir]) != data_dir:
+            return JsonResponse({'status': 'error', 'message': 'Invalid file path'}, status=403)
+
+        # Check if the file/directory exists
+        if not os.path.exists(full_path):
+            return JsonResponse({'status': 'error', 'message': 'File or directory does not exist'}, status=404)
+
+        # Create the new path
+        parent_dir = os.path.dirname(file_path)
+        new_path = os.path.join(parent_dir, new_name)
+        new_full_path = os.path.join(data_dir, new_path)
+
+        # Security check: make sure the new path is within the project directory
+        if os.path.commonpath([new_full_path, data_dir]) != data_dir:
+            return JsonResponse({'status': 'error', 'message': 'Invalid new path'}, status=403)
+
+        # Check if the new path already exists
+        if os.path.exists(new_full_path):
+            return JsonResponse({'status': 'error', 'message': 'A file or directory with that name already exists'}, status=400)
+
+        # Rename the file/directory
+        os.rename(full_path, new_full_path)
+
+        is_dir = os.path.isdir(new_full_path)
+
+        return JsonResponse({
+            'status': 'success',
+            'message': 'File or directory renamed successfully',
+            'item': {
+                'name': new_name,
+                'path': new_path,
+                'is_dir': is_dir,
+                'size': '0 B' if not is_dir else None,
+                'extension': os.path.splitext(new_name)[1].lstrip('.') if not is_dir else None,
+                'children': [] if is_dir else None
+            }
+        })
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)

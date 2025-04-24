@@ -54,7 +54,12 @@
                         </div>
                         <div class="card-footer bg-transparent">
                             <div class="d-flex justify-content-between">
-                                <a href="{% url 'project_detail' project.pk %}" class="btn btn-sm btn-outline-primary">View</a>
+                                <div>
+                                    <a href="{% url 'project_detail' project.pk %}" class="btn btn-sm btn-outline-primary">View</a>
+                                    <a href="{% url 'code_editor' project.pk %}" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-code-square"></i> Build
+                                    </a>
+                                </div>
                                 <div>
                                     <a href="{% url 'project_update' project.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
                                     <a href="{% url 'project_delete' project.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
