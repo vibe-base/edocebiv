@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Logout - Edocebiv{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="text-center">Sign Out</h3>
+            </div>
+            <div class="card-body text-center">
+                <p>Are you sure you want to sign out?</p>
+                <form method="post" action="{% url 'account_logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Yes, Sign Out</button>
+                    <a href="{% url 'home' %}" class="btn btn-secondary">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
