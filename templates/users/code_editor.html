@@ -2,6 +2,8 @@
 
 {% block title %}Code Editor - {{ project.title }} - Edocebiv{% endblock %}
 
+{% block footer %}{% endblock %}
+
 {% block extra_css %}
 <style>
     /* VS Code-like styling */
@@ -26,7 +28,13 @@
     .container {
         max-width: 100%;
         padding: 0;
-        margin-top: 0;
+        margin: 0;
+    }
+
+    body {
+        padding: 0;
+        margin: 0;
+        overflow: hidden;
     }
 
     .editor-container {
@@ -180,16 +188,7 @@
         outline: none;
     }
 
-    .status-bar {
-        height: 22px;
-        background-color: var(--editor-widget-bg);
-        border-top: 1px solid var(--editor-widget-border);
-        display: flex;
-        align-items: center;
-        padding: 0 10px;
-        font-size: 12px;
-        color: var(--editor-text);
-    }
+    /* Status bar removed */
 
     .file-explorer {
         padding: 0;
@@ -726,6 +725,27 @@
 {% endblock %}
 
 {% block content %}
+<style>
+    /* Override any container padding/margin for editor page */
+    body > .container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+
+    /* Remove any whitespace */
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Adjust editor container to take full height */
+    .editor-container {
+        height: calc(100vh - 56px) !important; /* Only account for navbar */
+        margin: 0 !important;
+    }
+</style>
 <div class="editor-container">
     <!-- Editor toolbar -->
     <div class="editor-header">
@@ -822,16 +842,7 @@
                 {% endif %}
             </div>
 
-            <!-- Status bar -->
-            <div class="status-bar">
-                <div class="status-item">
-                    {% if current_file %}
-                        {{ current_file.path }} | {{ current_file.extension|upper }}
-                    {% else %}
-                        Ready
-                    {% endif %}
-                </div>
-            </div>
+            <!-- Status bar removed -->
         </div>
 
         <!-- Chat panel -->
