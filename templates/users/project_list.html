@@ -29,6 +29,21 @@
                             <p class="card-text text-muted small">
                                 Created: {{ project.created_at|date:"M d, Y" }}
                             </p>
+
+                            {% if project.has_container %}
+                                <div class="mb-2">
+                                    {% if project.container_status == 'running' %}
+                                        <span class="badge bg-success">Container Running</span>
+                                    {% elif project.container_status == 'exited' or project.container_status == 'stopped' %}
+                                        <span class="badge bg-secondary">Container Stopped</span>
+                                    {% elif project.container_status == 'created' %}
+                                        <span class="badge bg-info">Container Created</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Container {{ project.container_status|default:"Unknown" }}</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+
                             <p class="card-text">
                                 {% if project.description %}
                                     {{ project.description|truncatewords:20 }}

@@ -2,6 +2,86 @@
 
 {% block title %}{{ project.title }} - Edocebiv{% endblock %}
 
+{% block extra_js %}
+<script>
+    // Function to refresh container status
+    function refreshContainerStatus() {
+        // Only refresh if the container exists
+        {% if project.has_container and docker_available %}
+            fetch('{% url "container_status" project.pk %}')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Update the status badge
+                        const statusBadge = document.getElementById('container-status-badge');
+                        if (statusBadge) {
+                            let badgeClass = 'bg-warning';
+                            let statusText = data.container_status || 'Unknown';
+
+                            if (data.container_status === 'running') {
+                                badgeClass = 'bg-success';
+                                statusText = 'Running';
+                            } else if (data.container_status === 'exited' || data.container_status === 'stopped') {
+                                badgeClass = 'bg-secondary';
+                                statusText = 'Stopped';
+                            } else if (data.container_status === 'created') {
+                                badgeClass = 'bg-info';
+                                statusText = 'Created';
+                            }
+
+                            // Remove all bg-* classes and add the new one
+                            statusBadge.className = 'badge ' + badgeClass;
+                            statusBadge.textContent = statusText;
+
+                            // Update the action buttons
+                            const actionButtons = document.getElementById('container-action-buttons');
+                            if (actionButtons) {
+                                if (data.container_status === 'running') {
+                                    actionButtons.innerHTML = `
+                                        <form method="post" action="{% url 'container_stop' project.pk %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-warning">
+                                                <i class="bi bi-stop-circle"></i> Stop Container
+                                            </button>
+                                        </form>
+                                        <form method="post" action="{% url 'container_remove' project.pk %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to remove this container? This action cannot be undone.')">
+                                                <i class="bi bi-trash"></i> Remove Container
+                                            </button>
+                                        </form>
+                                    `;
+                                } else if (data.container_status === 'exited' || data.container_status === 'stopped' || data.container_status === 'created') {
+                                    actionButtons.innerHTML = `
+                                        <form method="post" action="{% url 'container_start' project.pk %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success">
+                                                <i class="bi bi-play-circle"></i> Start Container
+                                            </button>
+                                        </form>
+                                        <form method="post" action="{% url 'container_remove' project.pk %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to remove this container? This action cannot be undone.')">
+                                                <i class="bi bi-trash"></i> Remove Container
+                                            </button>
+                                        </form>
+                                    `;
+                                }
+                            }
+                        }
+                    }
+                })
+                .catch(error => console.error('Error refreshing container status:', error));
+        {% endif %}
+    }
+
+    // Refresh container status every 10 seconds
+    {% if project.has_container and docker_available %}
+        setInterval(refreshContainerStatus, 10000);
+    {% endif %}
+</script>
+{% endblock %}
+
 {% block content %}
 <div class="container">
     <nav aria-label="breadcrumb" class="mb-4">
@@ -33,7 +113,7 @@
                 {% endif %}
             </div>
 
-            <div class="row">
+            <div class="row mb-4">
                 <div class="col-md-6">
                     <h5>Created</h5>
                     <p>{{ project.created_at|date:"F d, Y - H:i" }}</p>
@@ -41,6 +121,93 @@
                 <div class="col-md-6">
                     <h5>Last Updated</h5>
                     <p>{{ project.updated_at|date:"F d, Y - H:i" }}</p>
+                </div>
+            </div>
+
+            <!-- Container Management Section -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Docker Container</h5>
+                </div>
+                <div class="card-body">
+                    {% if not docker_available %}
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> Docker is not available. Please make sure Docker is running.
+                        </div>
+                    {% else %}
+                        {% if project.has_container %}
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <p><strong>Container ID:</strong> <code>{{ project.container_id|truncatechars:12 }}</code></p>
+                                    <p><strong>Status:</strong>
+                                        {% if project.container_status == 'running' %}
+                                            <span id="container-status-badge" class="badge bg-success">Running</span>
+                                        {% elif project.container_status == 'exited' or project.container_status == 'stopped' %}
+                                            <span id="container-status-badge" class="badge bg-secondary">Stopped</span>
+                                        {% elif project.container_status == 'created' %}
+                                            <span id="container-status-badge" class="badge bg-info">Created</span>
+                                        {% else %}
+                                            <span id="container-status-badge" class="badge bg-warning">{{ project.container_status|default:"Unknown" }}</span>
+                                        {% endif %}
+                                    </p>
+                                    {% if project.container_created_at %}
+                                        <p><strong>Created:</strong> {{ project.container_created_at|date:"F d, Y - H:i" }}</p>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Data Directory:</strong> <code>{{ project.get_data_directory }}</code></p>
+                                    <p><strong>Image:</strong> <code>{{ project.container_image }}</code></p>
+                                </div>
+                            </div>
+
+                            <div id="container-action-buttons" class="d-flex gap-2">
+                                {% if project.container_status == 'running' %}
+                                    <form method="post" action="{% url 'container_stop' project.pk %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-warning">
+                                            <i class="bi bi-stop-circle"></i> Stop Container
+                                        </button>
+                                    </form>
+                                {% elif project.container_status == 'exited' or project.container_status == 'stopped' or project.container_status == 'created' %}
+                                    <form method="post" action="{% url 'container_start' project.pk %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="bi bi-play-circle"></i> Start Container
+                                        </button>
+                                    </form>
+                                {% endif %}
+
+                                <form method="post" action="{% url 'container_remove' project.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to remove this container? This action cannot be undone.')">
+                                        <i class="bi bi-trash"></i> Remove Container
+                                    </button>
+                                </form>
+                            </div>
+                        {% else %}
+                            <p>No container has been created for this project yet.</p>
+                            <form method="post" action="{% url 'container_create' project.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus-circle"></i> Create Container
+                                </button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Data Directory Section -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Project Data</h5>
+                </div>
+                <div class="card-body">
+                    <p>Your project data is stored in the following directory:</p>
+                    <div class="alert alert-info">
+                        <code>{{ project.get_data_directory }}</code>
+                    </div>
+                    <p>This directory is mounted to the container at <code>/app/data</code> when the container is running.</p>
                 </div>
             </div>
         </div>

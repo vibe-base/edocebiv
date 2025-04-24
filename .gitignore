@@ -66,6 +66,10 @@ edocebiv/settings.py
 media/
 # Django static files collected
 staticfiles/
+# Project data directories
+data/project_*/
+# Keep the data directory README
+!data/README.md
 
 # Flask stuff:
 instance/
