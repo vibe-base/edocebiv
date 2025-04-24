@@ -93,9 +93,14 @@
         margin-right: 5px;
     }
 
-    .editor-header-button:hover {
+    .editor-header-button:hover:not(:disabled) {
         color: white;
         background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .editor-header-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
     .editor-main {
@@ -814,6 +819,50 @@
             opacity: 1;
         }
     }
+
+    /* Toast notification styles */
+    .toast-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+
+    .toast {
+        padding: 12px 20px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        color: white;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease, opacity 0.3s ease;
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    .toast.show {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    .toast i {
+        margin-right: 10px;
+        font-size: 16px;
+    }
+
+    .toast.success {
+        background-color: #4caf50;
+    }
+
+    .toast.error {
+        background-color: #f44336;
+    }
+
+    .toast.info {
+        background-color: #2196f3;
+    }
 </style>
 {% endblock %}
 
@@ -851,6 +900,11 @@
             {{ project.title }} - Code Editor
         </div>
         <div class="editor-header-right">
+            <!-- Save button -->
+            <button id="save-file-btn" class="editor-header-button" title="Save File (Ctrl+S)" {% if not current_file %}disabled{% endif %}>
+                <i class="bi bi-save"></i> Save
+            </button>
+
             {% if docker_available and project.has_container %}
                 {% if container_running %}
                     <span class="editor-header-button" title="Container Running">
@@ -1071,10 +1125,51 @@
     </div>
 </div>
 
+<!-- Toast Container -->
+<div id="toast-container" class="toast-container"></div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
+    // Toast notification function
+    function showToast(message, type = 'info') {
+        const toastContainer = document.getElementById('toast-container');
+
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+
+        // Add icon based on type
+        let icon = '';
+        if (type === 'success') {
+            icon = '<i class="bi bi-check-circle"></i>';
+        } else if (type === 'error') {
+            icon = '<i class="bi bi-exclamation-circle"></i>';
+        } else {
+            icon = '<i class="bi bi-info-circle"></i>';
+        }
+
+        // Set content
+        toast.innerHTML = `${icon} ${message}`;
+
+        // Add to container
+        toastContainer.appendChild(toast);
+
+        // Show toast with animation
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toastContainer.removeChild(toast);
+            }, 300); // Wait for fade out animation
+        }, 3000);
+    }
+
     // File explorer functionality
     function toggleFolder(element) {
         const folderContents = element.nextElementSibling;
@@ -1118,8 +1213,12 @@
             .then(data => {
                 if (data.status === 'success') {
                     console.log('File saved successfully');
+                    // Show toast notification
+                    showToast('File saved successfully', 'success');
                 } else {
                     console.error('Error saving file:', data.message);
+                    // Show error toast
+                    showToast('Error saving file: ' + data.message, 'error');
                 }
             })
             .catch(error => {
@@ -1143,11 +1242,31 @@
         }
     });
 
-    // Terminal functionality
+    // Terminal and editor functionality
     document.addEventListener('DOMContentLoaded', function() {
+        const saveFileBtn = document.getElementById('save-file-btn');
         const runFileBtn = document.getElementById('run-file-btn');
         const clearTerminalBtn = document.getElementById('clear-terminal-btn');
         const terminalOutput = document.getElementById('terminal-output');
+
+        // Save file button
+        if (saveFileBtn) {
+            saveFileBtn.addEventListener('click', function() {
+                // Use AJAX save to avoid page reload
+                saveFile(true);
+
+                // Show a temporary success message
+                const originalText = saveFileBtn.innerHTML;
+                saveFileBtn.innerHTML = '<i class="bi bi-check"></i> Saved';
+                saveFileBtn.disabled = true;
+
+                // Reset button after 1.5 seconds
+                setTimeout(() => {
+                    saveFileBtn.innerHTML = originalText;
+                    saveFileBtn.disabled = false;
+                }, 1500);
+            });
+        }
 
         // Run current file
         if (runFileBtn) {
