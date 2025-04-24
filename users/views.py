@@ -588,9 +588,9 @@ def chat_with_openai(request, pk):
         # Reverse the order to have oldest first
         recent_messages = list(reversed(recent_messages))
 
-        # Create the OpenAI MCP instance
-        from .file_operations_fixed import FileOperationsMCP
-        mcp = FileOperationsMCP(project, request.user)
+        # Create the MCP instance
+        from .file_operations import FileOperations
+        mcp = FileOperations(project, request.user)
 
         # Prepare the system message with context about the project
         system_message = f"You are an AI coding assistant helping with a project named '{project.title}'. "
@@ -632,7 +632,7 @@ Provide concise, helpful responses focused on coding assistance.
         }
 
         # Get tool definitions from MCP
-        tools = mcp.get_tool_definitions()
+        tools = mcp.get_tools()
 
         payload = {
             "model": "gpt-3.5-turbo",
@@ -680,10 +680,7 @@ Provide concise, helpful responses focused on coding assistance.
                 logger.info(f"Executing tool call: {tool_name} with arguments: {arguments}")
 
                 # Execute the tool
-                result = mcp.execute_tool({
-                    'name': tool_name,
-                    'arguments': arguments
-                })
+                result = mcp.execute_tool(tool_name, arguments)
 
                 # Store the result
                 tool_results.append({
