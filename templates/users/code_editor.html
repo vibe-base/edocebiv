@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Code Editor - {{ project.title }} - Edocebiv{% endblock %}
 
@@ -1225,6 +1226,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/chat-fix.js' %}"></script>
 <script>
     // Toast notification function
     function showToast(message, type = 'info') {
