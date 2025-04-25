@@ -1381,13 +1381,37 @@
 
         // Create a new WebSocket connection
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.host}/ws/tools/{{ project.pk }}/`;
 
-        toolSocket = new WebSocket(wsUrl);
+        // Handle different domain configurations
+        let wsHost = window.location.host;
+
+        // Fix for edocebiv.com domain
+        if (wsHost === 'edocebiv.com') {
+            // Use the same domain for WebSocket connection
+            wsHost = 'edocebiv.com';
+        }
+
+        const wsUrl = `${wsProtocol}//${wsHost}/ws/tools/{{ project.pk }}/`;
+        console.log('Connecting to WebSocket URL:', wsUrl);
+
+        try {
+            toolSocket = new WebSocket(wsUrl);
+        } catch (error) {
+            console.error('Error creating WebSocket connection:', error);
+        }
 
         // Connection opened
         toolSocket.onopen = function(event) {
             console.log('Tool WebSocket connection established');
+
+            // Reset reconnection attempts counter on successful connection
+            window.wsReconnectAttempts = 0;
+
+            // Show a toast notification if we previously had connection issues
+            if (window.hadWebSocketError) {
+                showToast('WebSocket connection restored', 'success');
+                window.hadWebSocketError = false;
+            }
         };
 
         // Listen for messages
@@ -1402,14 +1426,46 @@
 
         // Connection closed
         toolSocket.onclose = function(event) {
-            console.log('Tool WebSocket connection closed');
-            // Try to reconnect after a delay
-            setTimeout(setupToolSocket, 5000);
+            console.log('Tool WebSocket connection closed', event);
+
+            // Check if the connection was closed normally
+            if (event.wasClean) {
+                console.log(`Connection closed cleanly, code=${event.code}, reason=${event.reason}`);
+            } else {
+                // Connection was closed abnormally (e.g. server process killed or network error)
+                console.error('Connection died');
+
+                // Set flag to indicate we had a connection error
+                window.hadWebSocketError = true;
+
+                // Show a toast notification
+                showToast('WebSocket connection lost. Reconnecting...', 'error');
+            }
+
+            // Try to reconnect after a delay with exponential backoff
+            let reconnectDelay = 5000; // Start with 5 seconds
+
+            // If we've tried to reconnect multiple times, increase the delay
+            if (window.wsReconnectAttempts) {
+                window.wsReconnectAttempts++;
+                reconnectDelay = Math.min(30000, reconnectDelay * Math.pow(1.5, window.wsReconnectAttempts - 1));
+            } else {
+                window.wsReconnectAttempts = 1;
+            }
+
+            console.log(`Attempting to reconnect in ${reconnectDelay/1000} seconds...`);
+            setTimeout(setupToolSocket, reconnectDelay);
         };
 
         // Connection error
         toolSocket.onerror = function(error) {
             console.error('Tool WebSocket error:', error);
+
+            // Set flag to indicate we had a connection error
+            window.hadWebSocketError = true;
+
+            // Show a toast notification
+            showToast('WebSocket connection error. Check console for details.', 'error');
         };
     }
 
