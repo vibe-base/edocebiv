@@ -133,9 +133,9 @@
             <strong>We support as utility:</strong><br>
             <span style="font-family: monospace; font-size: 1.1em;">CAR CA: 4YDmSTcNaDtv1JF42qa8Po6PYfeu1SW3HvKUE96Gpump</span>
         </p>
-        {% endif %}
-        {% if not user.is_authenticated %}
+        <div class="mt-4">
             <a href="{% url 'account_signup' %}" class="btn btn-lg btn-light">Get Started</a>
+        </div>
         {% else %}
             <a href="{% url 'project_list' %}" class="btn btn-lg btn-light">My Projects</a>
         {% endif %}
