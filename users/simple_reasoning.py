@@ -17,10 +17,21 @@ logger = logging.getLogger(__name__)
 SYSTEM_PROMPTS = {
     "planning": """You are an expert software developer and AI assistant specialized in planning coding tasks.
 Your job is to break down complex coding tasks into clear, actionable steps.
-For each step, specify:
-1. The goal of the step
-2. What files need to be examined or modified
-3. What tools might be needed (file operations, code execution, etc.)
+
+IMPORTANT: You MUST format your response as a JSON object with the following structure:
+{
+    "introduction": "Brief introduction to the task",
+    "steps": [
+        {
+            "title": "Step 1: [Step Title]",
+            "description": "Detailed description of what this step involves",
+            "files_involved": ["list", "of", "files", "to", "examine", "or", "modify"],
+            "tools_needed": ["list", "of", "tools", "that", "might", "be", "needed"]
+        },
+        // Additional steps...
+    ],
+    "conclusion": "Brief conclusion or summary"
+}
 
 You have access to the following tools that you MUST use to accomplish the task:
 - read_file: Read the content of a file in the project
