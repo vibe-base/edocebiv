@@ -494,14 +494,33 @@ class AIReasoning:
         self._send_step_notification(session, step, "started")
 
         try:
-            # Create the agent for this step
-            agent = self.create_agent(step_type)
+            # For planning and conclusion steps, use a direct call to the LLM without tools
+            if step_type == "planning" or step_type == "conclusion":
+                # Select the appropriate LLM
+                llm = self.llm_o1
 
-            # Execute the agent
-            response = agent.invoke({"input": prompt})
+                # Get the system prompt for this step type
+                system_prompt = SYSTEM_PROMPTS.get(step_type, SYSTEM_PROMPTS["planning"])
+
+                # Create a direct message to the LLM
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ]
+
+                # Call the LLM directly
+                response = llm.invoke(messages)
+
+                # Extract the response content
+                output = response.content
+            else:
+                # For all other steps, use the agent with tools
+                agent = self.create_agent(step_type)
+                response = agent.invoke({"input": prompt})
+                output = response.get("output", "")
 
             # Update the step with the response
-            step.response = response.get("output", "")
+            step.response = output
             step.is_complete = True
             step.save()
 
@@ -591,7 +610,24 @@ class AIReasoning:
 
         try:
             # Step 1: Planning (always executed)
-            planning_prompt = f"Task: {task_description}\n\nCreate a detailed plan to accomplish this task."
+            planning_prompt = f"""Task: {task_description}
+
+Create a detailed plan to accomplish this task.
+
+IMPORTANT: In this planning step, DO NOT actually execute any tools or implement any code. Your job is ONLY to create a plan that will be executed in later steps.
+
+For each step, specify:
+1. The goal of the step
+2. What files need to be examined or modified
+3. What tools might be needed (read_file, write_file, run_file, etc.)
+
+The following tools will be available in later steps, but you should NOT use them now:
+- read_file: Read the content of a file in the project
+- write_file: Write content to a file in the project
+- list_files: List files and directories in a directory
+- run_file: Run a file in the project's container
+- delete_file: Delete a file or directory in the project
+"""
             if context and "current_file" in context:
                 planning_prompt += f"\n\nThe user is currently working on: {context['current_file']}"
 
@@ -698,6 +734,8 @@ class AIReasoning:
             Plan: {plan}
 
             {f"Implementation: {code_implementation}" if needs_code_generation else ""}
+
+            IMPORTANT: In this conclusion step, DO NOT execute any tools. Your job is ONLY to summarize what was accomplished in the previous steps.
 
             Provide a summary of what was accomplished and any next steps or recommendations.
             """

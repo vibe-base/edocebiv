@@ -33,7 +33,9 @@ IMPORTANT: You MUST format your response as a JSON object with the following str
     "conclusion": "Brief conclusion or summary"
 }
 
-You have access to the following tools that you MUST use to accomplish the task:
+IMPORTANT: In this planning step, DO NOT actually execute any tools or implement any code. Your job is ONLY to create a plan that will be executed in later steps. DO NOT use any tool calls in this step.
+
+The following tools will be available in later steps, but you should NOT use them now:
 - read_file: Read the content of a file in the project
 - write_file: Write content to a file in the project
 - list_files: List files and directories in a directory
@@ -42,19 +44,7 @@ You have access to the following tools that you MUST use to accomplish the task:
 - generate_diff: Generate a diff between original and new content
 - apply_patch: Apply a patch to a file
 
-To use a tool, format your response like this:
-```
-<tool>
-{
-  "name": "list_files",
-  "arguments": {
-    "directory_path": "/"
-  }
-}
-</tool>
-```
-
-Be thorough but concise. Focus on creating a practical, step-by-step plan that you will execute.
+Be thorough but concise. Focus on creating a practical, step-by-step plan that will be executed in later steps.
 """,
 
     "analysis": """You are an expert code analyst specialized in understanding codebases.
@@ -312,11 +302,24 @@ Provide specific, actionable improvements.
 """,
 
     "conclusion": """You are an expert in summarizing development work.
-Your job is to:
-1. Summarize what has been accomplished
-2. Highlight key changes or improvements made
-3. Note any remaining issues or future work
-4. Provide a clear conclusion to the reasoning session
+
+IMPORTANT: You MUST format your response as a JSON object with the following structure:
+{
+    "summary": "Overall summary of what was accomplished",
+    "key_changes": [
+        {
+            "description": "Description of a key change or improvement",
+            "impact": "Impact of this change"
+        },
+        // Additional key changes...
+    ],
+    "files_modified": ["List", "of", "files", "that", "were", "modified"],
+    "remaining_issues": ["List", "of", "any", "remaining", "issues"],
+    "future_work": ["List", "of", "suggested", "future", "work"],
+    "conclusion": "Final concluding thoughts"
+}
+
+IMPORTANT: In this conclusion step, DO NOT execute any tools. Your job is ONLY to summarize what was accomplished in the previous steps.
 
 You do not need to use any tools for this step. Just provide a clear, concise summary of the work done.
 
@@ -692,7 +695,14 @@ class SimpleReasoning:
                 "Content-Type": "application/json"
             }
 
-            # Determine if we should force tool use based on step type
+            # Determine if we should use tools based on step type
+            use_tools = True
+
+            # For planning and conclusion steps, don't use tools at all
+            if step_type in ["planning", "conclusion"]:
+                use_tools = False
+
+            # For code generation and execution steps, force tool use
             force_tool = False
             if step_type in ["code_generation", "code_execution"]:
                 force_tool = True
@@ -701,19 +711,22 @@ class SimpleReasoning:
             payload = {
                 "model": "gpt-4o",  # Use the o4 model for better tool use
                 "messages": messages,
-                "tools": self.tools,
                 "temperature": 0.2,
                 "max_tokens": 4000
             }
 
-            # Force tool use for certain step types
-            if force_tool and len(self.tools) > 0:
-                # Force the model to use tools
-                # For the OpenAI API, we just need to use "auto" to let the model choose which tool to use
-                payload["tool_choice"] = "auto"
-            else:
-                # Let the model decide whether to use tools at all
-                payload["tool_choice"] = "auto"
+            # Only include tools if we're using them
+            if use_tools:
+                payload["tools"] = self.tools
+
+                # Force tool use for certain step types
+                if force_tool:
+                    # Force the model to use tools
+                    # For the OpenAI API, we just need to use "auto" to let the model choose which tool to use
+                    payload["tool_choice"] = "auto"
+                else:
+                    # Let the model decide whether to use tools at all
+                    payload["tool_choice"] = "auto"
 
             logger.info(f"Sending request to OpenAI with {len(self.tools)} tools")
 
@@ -839,14 +852,18 @@ class SimpleReasoning:
                         "max_tokens": 4000
                     }
 
-                    # Force tool use for certain step types and early rounds
-                    if (force_tool and current_round <= 2) and len(self.tools) > 0:
-                        # Force the model to use tools in early rounds
-                        # For the OpenAI API, we just need to use "auto" to let the model choose which tool to use
-                        follow_up_payload["tool_choice"] = "auto"
-                    else:
-                        # Let the model decide whether to use tools at all
-                        follow_up_payload["tool_choice"] = "auto"
+                    # Only include tools if we're using them for this step type
+                    if use_tools:
+                        follow_up_payload["tools"] = self.tools
+
+                        # Force tool use for certain step types and early rounds
+                        if (force_tool and current_round <= 2):
+                            # Force the model to use tools in early rounds
+                            # For the OpenAI API, we just need to use "auto" to let the model choose which tool to use
+                            follow_up_payload["tool_choice"] = "auto"
+                        else:
+                            # Let the model decide whether to use tools at all
+                            follow_up_payload["tool_choice"] = "auto"
 
                     follow_up_response = requests.post(
                         "https://api.openai.com/v1/chat/completions",
@@ -976,16 +993,16 @@ class SimpleReasoning:
             # Step 1: Planning
             planning_prompt = f"""Task: {task_description}
 
-Create a detailed plan to accomplish this task. You MUST use the available tools to complete the task.
-DO NOT just describe what needs to be done - you will be executing this plan yourself.
+Create a detailed plan to accomplish this task.
+
+IMPORTANT: In this planning step, DO NOT actually execute any tools or implement any code. Your job is ONLY to create a plan that will be executed in later steps.
 
 For each step, specify:
 1. The goal of the step
 2. What files need to be examined or modified
-3. What tools you will use (read_file, write_file, run_file, etc.)
-4. The exact arguments you will pass to these tools
+3. What tools might be needed (read_file, write_file, run_file, etc.)
 
-Remember, you have these tools available:
+The following tools will be available in later steps, but you should NOT use them now:
 - read_file: Read the content of a file in the project
 - write_file: Write content to a file in the project
 - list_files: List files and directories in a directory
@@ -1065,6 +1082,8 @@ Plan: {plan}
 Implementation: {code_gen_step.response}
 
 Execution results: {execution_step.response}
+
+IMPORTANT: In this conclusion step, DO NOT execute any tools. Your job is ONLY to summarize what was accomplished in the previous steps.
 
 Provide a summary of what was accomplished:
 1. What files were created or modified
