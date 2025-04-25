@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.urls import reverse
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 import os
 import shutil
 import json
@@ -110,6 +110,28 @@ def profile_view(request):
     return render(request, 'users/profile.html', {
         'form': form,
         'profile': profile
+    })
+
+@login_required
+@require_POST
+def save_preferences(request):
+    """AJAX endpoint to save user preferences."""
+    profile = request.user.profile
+
+    # Get preferences from POST data
+    is_assistant_window_open = request.POST.get('is_assistant_window_open') == 'true'
+    is_reasoning_mode_on = request.POST.get('is_reasoning_mode_on') == 'true'
+
+    # Update profile
+    profile.is_assistant_window_open = is_assistant_window_open
+    profile.is_reasoning_mode_on = is_reasoning_mode_on
+    profile.save()
+
+    return JsonResponse({
+        'status': 'success',
+        'message': 'Preferences saved successfully',
+        'is_assistant_window_open': profile.is_assistant_window_open,
+        'is_reasoning_mode_on': profile.is_reasoning_mode_on
     })
 
 # Docker Container Management Views

@@ -1111,8 +1111,8 @@
                 <h3><i class="bi bi-robot"></i> AI Assistant</h3>
                 <div class="chat-header-actions">
                     <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="reasoning-mode-toggle">
-                        <label class="form-check-label" for="reasoning-mode-toggle" title="Enable AI reasoning for complex tasks">
+                        <input class="form-check-input" type="checkbox" id="reasoning-mode-checkbox">
+                        <label class="form-check-label" for="reasoning-mode-checkbox" title="Enable AI reasoning for complex tasks">
                             Reasoning Mode
                         </label>
                     </div>
@@ -2535,6 +2535,84 @@
                 contextMenu.remove();
             }
         }
+    });
+
+    // User preference state management
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize state from user preferences
+        let isAssistantWindowOpen = {{ user_profile.is_assistant_window_open|lower }};
+        let isReasoningModeOn = {{ user_profile.is_reasoning_mode_on|lower }};
+
+        // Get the chat panel and reasoning mode checkbox
+        const chatPanel = document.querySelector('.chat-panel');
+        const reasoningModeCheckbox = document.querySelector('#reasoning-mode-checkbox');
+
+        // Set initial state based on user preferences
+        if (!isAssistantWindowOpen && chatPanel) {
+            chatPanel.classList.add('collapsed');
+            const chatToggleButton = document.querySelector('.chat-toggle');
+            if (chatToggleButton) {
+                chatToggleButton.innerHTML = '<i class="bi bi-chat-right-text"></i>';
+            }
+        }
+
+        if (reasoningModeCheckbox) {
+            reasoningModeCheckbox.checked = isReasoningModeOn;
+        }
+
+        // Function to save user preferences via AJAX
+        function saveUserPreferences() {
+            fetch('/users/save_preferences/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: `is_assistant_window_open=${isAssistantWindowOpen}&is_reasoning_mode_on=${isReasoningModeOn}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Preferences saved:', data);
+            })
+            .catch(error => {
+                console.error('Error saving preferences:', error);
+            });
+        }
+
+        // Get CSRF token from cookies
+        function getCsrfToken() {
+            const name = 'csrftoken';
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Listen for chat panel toggle
+        document.querySelector('.chat-toggle')?.addEventListener('click', function() {
+            if (chatPanel) {
+                chatPanel.classList.toggle('collapsed');
+                isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
+                this.innerHTML = isAssistantWindowOpen ?
+                    '<i class="bi bi-chevron-right"></i>' :
+                    '<i class="bi bi-chat-right-text"></i>';
+                saveUserPreferences();
+            }
+        });
+
+        // Listen for reasoning mode toggle
+        reasoningModeCheckbox?.addEventListener('change', function() {
+            isReasoningModeOn = this.checked;
+            saveUserPreferences();
+        });
     });
 </script>
 {% endblock %}

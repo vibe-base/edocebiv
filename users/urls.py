@@ -6,6 +6,7 @@ from . import chat_reasoning
 urlpatterns = [
     # Profile URLs
     path('profile/', views.profile_view, name='profile_view'),
+    path('save_preferences/', views.save_preferences, name='save_preferences'),
 
     # Project URLs
     path('projects/', views.project_list, name='project_list'),

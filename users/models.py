@@ -8,6 +8,8 @@ class UserProfile(models.Model):
     """Model representing a user's profile with additional information."""
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     openai_api_key = models.CharField(max_length=255, blank=True, null=True, help_text="Your OpenAI API key")
+    is_assistant_window_open = models.BooleanField(default=True, help_text="Whether the assistant window is open")
+    is_reasoning_mode_on = models.BooleanField(default=False, help_text="Whether reasoning mode is enabled")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

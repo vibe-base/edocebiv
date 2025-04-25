@@ -5,7 +5,7 @@
 {% block content %}
 <div class="container">
     <h1 class="mb-4">My Profile</h1>
-    
+
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-{{ message.tags }}">
@@ -13,7 +13,7 @@
             </div>
         {% endfor %}
     {% endif %}
-    
+
     <div class="row">
         <div class="col-md-4">
             <div class="card mb-4">
@@ -28,7 +28,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="col-md-8">
             <div class="card">
                 <div class="card-header">
@@ -37,7 +37,7 @@
                 <div class="card-body">
                     <form method="post">
                         {% csrf_token %}
-                        
+
                         <div class="mb-3">
                             <label for="{{ form.openai_api_key.id_for_label }}" class="form-label">OpenAI API Key</label>
                             {{ form.openai_api_key }}
@@ -50,12 +50,30 @@
                                 </div>
                             {% endif %}
                         </div>
-                        
-                        <div class="alert alert-info">
+
+                        <div class="alert alert-info mb-4">
                             <h6 class="alert-heading"><i class="bi bi-info-circle"></i> About API Keys</h6>
                             <p class="mb-0">Your API key is stored securely and is used to access OpenAI services. You can get an API key from the <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI dashboard</a>.</p>
                         </div>
-                        
+
+                        <h5 class="mb-3">Editor Preferences</h5>
+
+                        <div class="mb-3 form-check">
+                            {{ form.is_assistant_window_open }}
+                            <label for="{{ form.is_assistant_window_open.id_for_label }}" class="form-check-label">
+                                Open Assistant Window by Default
+                            </label>
+                            <div class="form-text">{{ form.is_assistant_window_open.help_text }}</div>
+                        </div>
+
+                        <div class="mb-4 form-check">
+                            {{ form.is_reasoning_mode_on }}
+                            <label for="{{ form.is_reasoning_mode_on.id_for_label }}" class="form-check-label">
+                                Enable Reasoning Mode by Default
+                            </label>
+                            <div class="form-text">{{ form.is_reasoning_mode_on.help_text }}</div>
+                        </div>
+
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary">Save Changes</button>
                         </div>
