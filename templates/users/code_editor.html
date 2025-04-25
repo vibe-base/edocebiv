@@ -2694,9 +2694,49 @@
             reasoningModeCheckbox.checked = isReasoningModeOn;
         }
 
+        // Function to get CSRF token from cookies
+        function getCsrfToken() {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken' + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
         // Function to save user preferences via AJAX
         function saveUserPreferences() {
-            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+            // Try to get CSRF token from form first
+            let csrfToken = null;
+            const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+
+            if (csrfInput) {
+                // Get token from form if available
+                csrfToken = csrfInput.value;
+                console.log('Got CSRF token from form');
+            } else {
+                // Fall back to cookie if form input not found
+                csrfToken = getCsrfToken();
+                console.log('Got CSRF token from cookie');
+            }
+
+            // Check if we have a token
+            if (!csrfToken) {
+                console.error('Could not find CSRF token');
+                return;
+            }
+
+            console.log('Saving user preferences:', {
+                isAssistantWindowOpen,
+                isReasoningModeOn
+            });
 
             fetch('/users/save_preferences/', {
                 method: 'POST',
