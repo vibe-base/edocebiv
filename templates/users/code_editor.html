@@ -22,6 +22,8 @@
         --header-bg: #333333;
         --tab-bg: #2d2d2d;
         --tab-active-bg: #1e1e1e;
+        --preview-bg: #1e1e1e;
+        --preview-border: #454545;
     }
 
     /* Override container styles for editor */
@@ -977,6 +979,100 @@
         border-left-color: #f44336;
     }
 
+    /* Preview panel styles */
+    .preview-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 50%;
+        height: 100%;
+        background-color: var(--preview-bg);
+        border-left: 1px solid var(--preview-border);
+        display: none;
+        flex-direction: column;
+        z-index: 10;
+    }
+
+    .preview-header {
+        height: 40px;
+        background-color: var(--header-bg);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 10px;
+        border-bottom: 1px solid var(--preview-border);
+    }
+
+    .preview-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--editor-text);
+    }
+
+    .preview-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .preview-content {
+        flex: 1;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .preview-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        background-color: white;
+    }
+
+    .preview-loading {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(30, 30, 30, 0.8);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: var(--editor-text);
+    }
+
+    .preview-error {
+        padding: 20px;
+        color: #f44336;
+        text-align: center;
+    }
+
+    .preview-toggle {
+        position: absolute;
+        top: 50px;
+        right: 10px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: var(--editor-widget-bg);
+        border: 1px solid var(--editor-widget-border);
+        color: var(--editor-text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 5;
+    }
+
+    /* When preview is active, adjust the editor area */
+    .main-content.preview-active .editor-terminal-container {
+        width: 50%;
+    }
+
+    .main-content.preview-active .preview-panel {
+        display: flex;
+    }
+
     .chat-tool-result::before {
         content: attr(data-tool-type);
         position: absolute;
@@ -1160,6 +1256,11 @@
                 <i class="bi bi-chat-dots"></i>
             </button>
 
+            <!-- Preview toggle button -->
+            <button id="preview-toggle-btn" class="preview-toggle" title="Toggle Web Preview">
+                <i class="bi bi-globe"></i>
+            </button>
+
             <!-- Editor tabs -->
             <div class="editor-tabs" id="editor-tabs">
                 {% if current_file %}
@@ -1274,6 +1375,39 @@
                     </span>
                 </div>
             {% endif %}
+        </div>
+    </div>
+
+    <!-- Preview panel -->
+    <div id="preview-panel" class="preview-panel">
+        <div class="preview-header">
+            <div class="preview-title">
+                <i class="bi bi-globe"></i> Web Preview
+            </div>
+            <div class="preview-actions">
+                <button id="preview-refresh-btn" class="editor-header-button" title="Refresh">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <button id="preview-external-btn" class="editor-header-button" title="Open in new tab">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                </button>
+                <button id="preview-close-btn" class="editor-header-button" title="Close">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+        </div>
+        <div class="preview-content">
+            <iframe id="preview-iframe" class="preview-iframe" sandbox="allow-same-origin allow-scripts allow-forms" title="Web Preview"></iframe>
+            <div id="preview-loading" class="preview-loading" style="display: none;">
+                <div class="spinner-border text-light" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading preview...</p>
+            </div>
+            <div id="preview-error" class="preview-error" style="display: none;">
+                <i class="bi bi-exclamation-triangle-fill fs-1 mb-3"></i>
+                <p id="preview-error-message">Could not load preview.</p>
+            </div>
         </div>
     </div>
 </div>
@@ -3871,6 +4005,146 @@
             reasoningModeCheckbox.addEventListener('change', function() {
                 isReasoningModeOn = this.checked;
                 saveUserPreferences();
+            });
+        }
+
+        // Preview panel functionality
+        const previewPanel = document.getElementById('preview-panel');
+        const previewToggleBtn = document.getElementById('preview-toggle-btn');
+        const previewCloseBtn = document.getElementById('preview-close-btn');
+        const previewRefreshBtn = document.getElementById('preview-refresh-btn');
+        const previewExternalBtn = document.getElementById('preview-external-btn');
+        const previewIframe = document.getElementById('preview-iframe');
+        const previewLoading = document.getElementById('preview-loading');
+        const previewError = document.getElementById('preview-error');
+        const previewErrorMessage = document.getElementById('preview-error-message');
+        const mainContent = document.querySelector('.main-content');
+
+        // Function to open the preview panel
+        function openPreviewPanel() {
+            if (!previewPanel) return;
+
+            console.log('Opening preview panel');
+
+            // Add the preview-active class to the main content
+            mainContent.classList.add('preview-active');
+
+            // Show the preview panel
+            previewPanel.style.display = 'flex';
+
+            // Update state
+            isPreviewPanelOpen = true;
+
+            // Load the preview
+            loadPreview();
+        }
+
+        // Function to close the preview panel
+        function closePreviewPanel() {
+            if (!previewPanel) return;
+
+            console.log('Closing preview panel');
+
+            // Remove the preview-active class from the main content
+            mainContent.classList.remove('preview-active');
+
+            // Hide the preview panel
+            previewPanel.style.display = 'none';
+
+            // Update state
+            isPreviewPanelOpen = false;
+        }
+
+        // Function to load the preview
+        function loadPreview() {
+            // Show loading indicator
+            previewLoading.style.display = 'flex';
+            previewError.style.display = 'none';
+
+            // Get the project ID
+            const projectId = {{ project.id }};
+
+            // Check if the container is running
+            {% if container_running %}
+                // Set the iframe src to the preview URL
+                const previewUrl = `/users/projects/${projectId}/preview/`;
+
+                console.log('Loading preview from:', previewUrl);
+
+                // Set the iframe src
+                previewIframe.src = previewUrl;
+
+                // Handle iframe load event
+                previewIframe.onload = function() {
+                    // Hide loading indicator
+                    previewLoading.style.display = 'none';
+
+                    console.log('Preview loaded successfully');
+                };
+
+                // Handle iframe error event
+                previewIframe.onerror = function() {
+                    // Hide loading indicator
+                    previewLoading.style.display = 'none';
+
+                    // Show error message
+                    previewError.style.display = 'block';
+                    previewErrorMessage.textContent = 'Failed to load preview. The web server may not be running in the container.';
+
+                    console.error('Failed to load preview');
+                };
+            {% else %}
+                // Hide loading indicator
+                previewLoading.style.display = 'none';
+
+                // Show error message
+                previewError.style.display = 'block';
+                previewErrorMessage.textContent = 'Container is not running. Start the container to preview your web application.';
+
+                console.error('Container is not running');
+            {% endif %}
+        }
+
+        // Listen for preview toggle button click
+        if (previewToggleBtn) {
+            previewToggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                if (isPreviewPanelOpen) {
+                    closePreviewPanel();
+                } else {
+                    openPreviewPanel();
+                }
+            });
+        }
+
+        // Listen for preview close button click
+        if (previewCloseBtn) {
+            previewCloseBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                closePreviewPanel();
+            });
+        }
+
+        // Listen for preview refresh button click
+        if (previewRefreshBtn) {
+            previewRefreshBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                loadPreview();
+            });
+        }
+
+        // Listen for preview external button click
+        if (previewExternalBtn) {
+            previewExternalBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                // Get the project ID
+                const projectId = {{ project.id }};
+
+                // Open the preview in a new tab
+                const previewUrl = `/users/projects/${projectId}/preview/`;
+                window.open(previewUrl, '_blank');
             });
         }
     });

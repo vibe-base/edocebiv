@@ -28,6 +28,21 @@ class DockerManager:
         except Exception:
             return False
 
+    def calculate_project_port(self, project_id):
+        """
+        Calculate the web server port for a specific project.
+
+        Args:
+            project_id: The project ID
+
+        Returns:
+            The web server port number
+        """
+        base_port = 20000
+        web_server_port = base_port + project_id
+
+        return web_server_port
+
     def create_container(self, project):
         """Create a Docker container for the project."""
         if not self.is_available():
@@ -63,6 +78,18 @@ class DockerManager:
                 # Container doesn't exist, which is what we want
                 pass
 
+            # Calculate the web server port for this project
+            web_server_port = self.calculate_project_port(project.id)
+
+            # Set the web server port in the project model
+            project.web_server_port = web_server_port
+
+            # Create port bindings
+            port_bindings = {
+                # Map internal port to external port
+                f"{project.web_server_internal_port}/tcp": web_server_port
+            }
+
             # Create the container
             container = self.client.containers.create(
                 image=project.container_image,
@@ -79,7 +106,8 @@ class DockerManager:
                 environment={
                     "PROJECT_ID": str(project.id),
                     "PROJECT_TITLE": project.title
-                }
+                },
+                ports=port_bindings
             )
 
             # Update the project with container information

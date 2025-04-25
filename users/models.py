@@ -49,6 +49,14 @@ class Project(models.Model):
     container_image = models.CharField(max_length=100, default="python:latest",
                                      help_text="Docker image used for the container")
 
+    # Web server preview information
+    web_server_port = models.IntegerField(blank=True, null=True,
+                                        help_text="Port for web server preview")
+    web_server_internal_port = models.IntegerField(default=8000,
+                                                help_text="Internal container port for web server")
+    web_server_path = models.CharField(max_length=100, default="/",
+                                     help_text="Path to append to URL for web server preview")
+
     class Meta:
         ordering = ['-created_at']
 

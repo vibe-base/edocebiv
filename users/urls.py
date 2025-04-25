@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import reasoning_views
 from . import chat_reasoning
+from . import preview_proxy
 
 urlpatterns = [
     # Profile URLs
@@ -48,4 +49,8 @@ urlpatterns = [
     path('projects/<int:pk>/reasoning/start/', reasoning_views.start_reasoning, name='start_reasoning'),
     path('projects/<int:pk>/reasoning/execute/', reasoning_views.execute_full_reasoning, name='execute_full_reasoning'),
     path('projects/<int:pk>/reasoning/sessions/<int:session_id>/step/', reasoning_views.execute_reasoning_step, name='execute_reasoning_step'),
+
+    # Web Server Preview URLs
+    path('projects/<int:project_id>/preview/', preview_proxy.preview_proxy, name='preview_proxy'),
+    path('projects/<int:project_id>/preview/<path:path>', preview_proxy.preview_proxy, name='preview_proxy_with_path'),
 ]

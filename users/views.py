@@ -361,10 +361,15 @@ def code_editor(request, pk):
     # Check if Docker is available and the container is running
     docker_available = docker_manager.is_available()
     container_running = False
+    web_server_port = None
 
     if docker_available and project.container_id:
         container_status = docker_manager.get_container_status(project)
         container_running = container_status == 'running'
+
+        # Get the web server port if the container is running
+        if container_running and project.web_server_port:
+            web_server_port = project.web_server_port
 
     return render(request, 'users/code_editor.html', {
         'project': project,
@@ -373,6 +378,7 @@ def code_editor(request, pk):
         'current_file': current_file,
         'docker_available': docker_available,
         'container_running': container_running,
+        'web_server_port': web_server_port,
         'data_dir': data_dir,
         'user_profile': user_profile
     })
