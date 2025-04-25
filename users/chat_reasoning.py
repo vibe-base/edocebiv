@@ -14,6 +14,7 @@ from django.views.decorators.http import require_POST
 
 from .models import Project, UserProfile, ChatMessage, ReasoningSession, ReasoningStep
 from .ai_reasoning import AIReasoning
+from .simple_reasoning import SimpleReasoning
 from .file_operations import FileOperations
 
 logger = logging.getLogger(__name__)
@@ -191,8 +192,46 @@ def _handle_reasoning_request(
     }
 
     try:
-        # Initialize the AI reasoning system
-        reasoning = AIReasoning(project, user_profile.openai_api_key)
+        # Initialize the AI reasoning system with a try/except block
+        try:
+            # First try with the LangChain-based reasoning
+            try:
+                # Try to initialize the AI reasoning system
+                reasoning = AIReasoning(project, user_profile.openai_api_key)
+            except Exception as e:
+                # If there's any error with the LangChain-based reasoning, fall back to simple reasoning
+                logger.warning(f"Falling back to simple reasoning due to error: {str(e)}")
+
+                # Log a message to the user
+                ChatMessage.objects.create(
+                    project=project,
+                    user=request.user,
+                    role='system',
+                    content="Using simplified reasoning system due to compatibility issues with the advanced system."
+                )
+
+                # Use the simple reasoning implementation instead
+                reasoning = SimpleReasoning(project, user_profile.openai_api_key)
+        except Exception as e:
+            # If both reasoning systems fail, fall back to regular chat
+            logger.error(f"Both reasoning systems failed: {str(e)}")
+            error_message = f"The reasoning system encountered an initialization error: {str(e)}. Falling back to regular chat."
+
+            # Save the error message as a system message
+            ChatMessage.objects.create(
+                project=project,
+                user=request.user,
+                role='system',
+                content=error_message
+            )
+
+            # Fall back to regular chat
+            from .views import chat_with_openai_internal
+            return chat_with_openai_internal(
+                request, project, user_profile, message,
+                current_file, current_file_content,
+                user_chat_message, recent_messages
+            )
 
         # Execute the reasoning chain
         session = reasoning.execute_reasoning_chain(message, context)

@@ -112,23 +112,34 @@ class AIReasoning:
         self.project = project
         self.api_key = api_key
 
-        # Initialize LLMs with minimal configuration to avoid compatibility issues
-        from openai import OpenAI
-
-        # Create a simple OpenAI client
-        openai_client = OpenAI(api_key=api_key)
+        # Initialize LLMs with direct API key approach
+        # This avoids using the client parameter which can cause compatibility issues
 
         # Initialize LLMs with minimal parameters
         self.llm_o1 = ChatOpenAI(
             model="o1",
             temperature=0,
-            client=openai_client
+            api_key=api_key,
+            # Explicitly set parameters that might cause issues to None
+            http_client=None,
+            max_retries=None,
+            timeout=None,
+            default_headers=None,
+            default_query=None,
+            # Don't use any parameters that might not be supported
+            # across different versions
         )
 
         self.llm_o4 = ChatOpenAI(
             model="gpt-4o",
             temperature=0.2,
-            client=openai_client
+            api_key=api_key,
+            # Explicitly set parameters that might cause issues to None
+            http_client=None,
+            max_retries=None,
+            timeout=None,
+            default_headers=None,
+            default_query=None,
         )
 
         # Initialize file operations
