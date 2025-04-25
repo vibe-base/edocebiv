@@ -1234,6 +1234,88 @@
 
 {% block extra_js %}
 <script>
+    // Global variables for chat functionality
+    let globalChatMessages;
+    let globalAddMessage;
+
+    // Global function to load chat history
+    function globalLoadChatHistory() {
+        console.log('Global load chat history called');
+
+        // Check if chat elements are initialized
+        if (!globalChatMessages) {
+            globalChatMessages = document.getElementById('chat-messages');
+            if (!globalChatMessages) {
+                console.error('Chat messages element not found');
+                return;
+            }
+        }
+
+        // Show loading indicator
+        globalChatMessages.innerHTML = '<div class="chat-loading">Loading conversation history...</div>';
+
+        // Fetch chat history
+        fetch('{% url "chat_history" project.pk %}')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Clear loading indicator
+                    globalChatMessages.innerHTML = '';
+
+                    // Add messages to chat
+                    if (data.history.length === 0) {
+                        // Add welcome message if no history
+                        if (typeof globalAddMessage === 'function') {
+                            globalAddMessage('Hello! I\'m your AI coding assistant. How can I help you with your project today?', 'assistant');
+                        } else {
+                            globalChatMessages.innerHTML = '<div class="chat-message assistant"><div class="chat-message-sender">AI Assistant</div><div class="chat-message-content">Hello! I\'m your AI coding assistant. How can I help you with your project today?</div></div>';
+                        }
+                    } else {
+                        // Add history messages
+                        data.history.forEach(msg => {
+                            if (typeof globalAddMessage === 'function') {
+                                globalAddMessage(msg.content, msg.role);
+                            } else {
+                                const messageDiv = document.createElement('div');
+                                messageDiv.className = `chat-message ${msg.role}`;
+
+                                const senderDiv = document.createElement('div');
+                                senderDiv.className = 'chat-message-sender';
+
+                                // Set the sender name based on the role
+                                if (msg.role === 'user') {
+                                    senderDiv.textContent = 'You';
+                                } else if (msg.role === 'system') {
+                                    senderDiv.textContent = 'System';
+                                    messageDiv.classList.add('system-message');
+                                } else {
+                                    senderDiv.textContent = 'AI Assistant';
+                                }
+
+                                const contentDiv = document.createElement('div');
+                                contentDiv.className = 'chat-message-content';
+                                contentDiv.innerHTML = msg.content.replace(/\n/g, '<br>');
+
+                                messageDiv.appendChild(senderDiv);
+                                messageDiv.appendChild(contentDiv);
+
+                                globalChatMessages.appendChild(messageDiv);
+                            }
+                        });
+                    }
+
+                    // Scroll to bottom
+                    globalChatMessages.scrollTop = globalChatMessages.scrollHeight;
+                } else {
+                    // Show error
+                    globalChatMessages.innerHTML = `<div class="chat-message assistant"><div class="chat-message-sender">AI Assistant</div><div class="chat-message-content">Error loading chat history: ${data.message}</div></div>`;
+                }
+            })
+            .catch(error => {
+                // Show error
+                globalChatMessages.innerHTML = `<div class="chat-message assistant"><div class="chat-message-sender">AI Assistant</div><div class="chat-message-content">Error loading chat history: ${error.message}</div></div>`;
+            });
+    }
     // WebSocket connection for real-time updates
     let toolSocket;
 
@@ -1617,6 +1699,14 @@
         const chatInput = document.getElementById('chat-input');
         const chatSendBtn = document.getElementById('chat-send-btn');
 
+        // Set global variables for chat functionality
+        globalChatMessages = chatMessages;
+
+        // Set global addMessage function
+        globalAddMessage = function(content, sender) {
+            addMessage(content, sender);
+        };
+
         // Toggle chat panel
         chatToggleBtn.addEventListener('click', function() {
             chatPanel.classList.toggle('collapsed');
@@ -1624,7 +1714,16 @@
                 chatInput.focus();
                 // Load chat history if not already loaded
                 if (chatMessages.children.length <= 1) {
-                    loadChatHistory();
+                    // Try to use the global function first
+                    if (typeof globalLoadChatHistory === 'function') {
+                        console.log('Using global load chat history function');
+                        globalLoadChatHistory();
+                    } else if (typeof loadChatHistory === 'function') {
+                        console.log('Using local load chat history function');
+                        loadChatHistory();
+                    } else {
+                        console.error('No chat history loading function found');
+                    }
                 }
                 // Scroll to bottom of messages
                 chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -2596,6 +2695,22 @@
                 isAssistantWindowOpen = true;
                 saveUserPreferences();
                 console.log('Chat panel opened successfully');
+
+                // Load chat history if it exists
+                try {
+                    // Check if the global loadChatHistory function exists
+                    if (typeof globalLoadChatHistory === 'function') {
+                        console.log('Loading chat history using global function...');
+                        globalLoadChatHistory();
+                    } else if (typeof loadChatHistory === 'function') {
+                        console.log('Loading chat history using local function...');
+                        loadChatHistory();
+                    } else {
+                        console.error('No chat history loading function found');
+                    }
+                } catch (error) {
+                    console.error('Error loading chat history:', error);
+                }
             }, 50);
         }
 
@@ -2655,6 +2770,22 @@
                 }
 
                 console.log('Assistant window opened on page load');
+
+                // Load chat history if it exists
+                try {
+                    // Check if the global loadChatHistory function exists
+                    if (typeof globalLoadChatHistory === 'function') {
+                        console.log('Loading chat history on page load using global function...');
+                        globalLoadChatHistory();
+                    } else if (typeof loadChatHistory === 'function') {
+                        console.log('Loading chat history on page load using local function...');
+                        loadChatHistory();
+                    } else {
+                        console.error('No chat history loading function found');
+                    }
+                } catch (error) {
+                    console.error('Error loading chat history on page load:', error);
+                }
 
                 // Add a second timeout to ensure the panel is fully open
                 setTimeout(function() {
