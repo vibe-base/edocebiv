@@ -189,6 +189,120 @@
         color: #007bff;
     }
 
+    /* Reasoning progress styles */
+    .reasoning-progress-container {
+        margin: 10px 0;
+        padding: 10px;
+        background-color: rgba(0, 123, 255, 0.05);
+        border-radius: 5px;
+        border: 1px solid rgba(0, 123, 255, 0.2);
+    }
+
+    .reasoning-progress-container h3 {
+        margin: 0 0 10px 0;
+        font-size: 16px;
+        color: #007bff;
+        text-align: center;
+    }
+
+    .reasoning-steps-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .reasoning-step {
+        padding: 8px;
+        border-radius: 4px;
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .reasoning-step-title {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+
+    .reasoning-step-status {
+        font-size: 12px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        display: inline-block;
+        margin-bottom: 5px;
+    }
+
+    .reasoning-step-planning .reasoning-step-status {
+        background-color: rgba(0, 123, 255, 0.2);
+        color: #007bff;
+    }
+
+    .reasoning-step-analysis .reasoning-step-status {
+        background-color: rgba(108, 117, 125, 0.2);
+        color: #6c757d;
+    }
+
+    .reasoning-step-code_generation .reasoning-step-status {
+        background-color: rgba(40, 167, 69, 0.2);
+        color: #28a745;
+    }
+
+    .reasoning-step-code_execution .reasoning-step-status {
+        background-color: rgba(255, 193, 7, 0.2);
+        color: #ffc107;
+    }
+
+    .reasoning-step-testing .reasoning-step-status {
+        background-color: rgba(23, 162, 184, 0.2);
+        color: #17a2b8;
+    }
+
+    .reasoning-step-refinement .reasoning-step-status {
+        background-color: rgba(111, 66, 193, 0.2);
+        color: #6f42c1;
+    }
+
+    .reasoning-step-conclusion .reasoning-step-status {
+        background-color: rgba(40, 167, 69, 0.2);
+        color: #28a745;
+    }
+
+    .reasoning-step-started {
+        border-left: 3px solid #ffc107;
+    }
+
+    .reasoning-step-completed {
+        border-left: 3px solid #28a745;
+    }
+
+    .reasoning-step-failed {
+        border-left: 3px solid #dc3545;
+    }
+
+    .reasoning-step-content {
+        margin-top: 5px;
+        padding: 5px;
+        background-color: rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+        font-family: monospace;
+        font-size: 12px;
+        max-height: 200px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+    }
+
+    .reasoning-json-response {
+        margin: 0;
+        padding: 0;
+        white-space: pre-wrap;
+        font-family: monospace;
+        font-size: 12px;
+    }
+
+    .reasoning-error {
+        color: #dc3545;
+        font-weight: bold;
+    }
+
     .chat-header h3 {
         margin: 0;
         font-size: 16px;
@@ -1421,6 +1535,8 @@
 
             if (data.type === 'tool_executed') {
                 handleToolExecution(data.tool_name, data.result);
+            } else if (data.type === 'reasoning_step') {
+                handleReasoningStep(data.session_id, data.step);
             }
         };
 
@@ -1511,6 +1627,113 @@
                 showToast(`No differences found${result.file_path ? ` for ${result.file_path}` : ''}`, 'info');
             }
         }
+    }
+
+    // Handle reasoning step notifications
+    function handleReasoningStep(sessionId, step) {
+        console.log(`Reasoning step update: ${step.step_type} (${step.status})`, step);
+
+        // Check if we have a reasoning progress container
+        let reasoningProgressContainer = document.getElementById('reasoning-progress-container');
+
+        // If not, create one
+        if (!reasoningProgressContainer) {
+            // Create the container
+            reasoningProgressContainer = document.createElement('div');
+            reasoningProgressContainer.id = 'reasoning-progress-container';
+            reasoningProgressContainer.className = 'reasoning-progress-container';
+
+            // Add a title
+            const title = document.createElement('h3');
+            title.textContent = 'AI Reasoning Progress';
+            reasoningProgressContainer.appendChild(title);
+
+            // Create a steps container
+            const stepsContainer = document.createElement('div');
+            stepsContainer.id = 'reasoning-steps-container';
+            stepsContainer.className = 'reasoning-steps-container';
+            reasoningProgressContainer.appendChild(stepsContainer);
+
+            // Add it to the chat panel, right after the loading indicator or as the first element
+            const loadingIndicator = document.getElementById('chat-loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.parentNode.insertBefore(reasoningProgressContainer, loadingIndicator.nextSibling);
+            } else {
+                const chatMessages = document.getElementById('chat-messages');
+                chatMessages.appendChild(reasoningProgressContainer);
+            }
+        }
+
+        // Get the steps container
+        const stepsContainer = document.getElementById('reasoning-steps-container');
+
+        // Check if we already have a step element for this step
+        let stepElement = document.getElementById(`reasoning-step-${step.id}`);
+
+        // If not, create one
+        if (!stepElement) {
+            stepElement = document.createElement('div');
+            stepElement.id = `reasoning-step-${step.id}`;
+            stepElement.className = `reasoning-step reasoning-step-${step.step_type} reasoning-step-${step.status}`;
+
+            // Add step number and type
+            const stepTitle = document.createElement('div');
+            stepTitle.className = 'reasoning-step-title';
+
+            // Format the step type for display
+            let stepTypeDisplay = step.step_type.charAt(0).toUpperCase() + step.step_type.slice(1);
+
+            stepTitle.textContent = `Step ${step.step_number}: ${stepTypeDisplay}`;
+            stepElement.appendChild(stepTitle);
+
+            // Add status indicator
+            const statusIndicator = document.createElement('div');
+            statusIndicator.className = 'reasoning-step-status';
+            statusIndicator.textContent = step.status.charAt(0).toUpperCase() + step.status.slice(1);
+            stepElement.appendChild(statusIndicator);
+
+            // Add content container (will be filled later if completed)
+            const contentContainer = document.createElement('div');
+            contentContainer.className = 'reasoning-step-content';
+            stepElement.appendChild(contentContainer);
+
+            // Add to the steps container
+            stepsContainer.appendChild(stepElement);
+        }
+
+        // Update the step element based on status
+        stepElement.className = `reasoning-step reasoning-step-${step.step_type} reasoning-step-${step.status}`;
+
+        // Update the status indicator
+        const statusIndicator = stepElement.querySelector('.reasoning-step-status');
+        statusIndicator.textContent = step.status.charAt(0).toUpperCase() + step.status.slice(1);
+
+        // If completed, add the response
+        if (step.status === 'completed' && step.response) {
+            const contentContainer = stepElement.querySelector('.reasoning-step-content');
+
+            // Try to parse the response as JSON
+            try {
+                const jsonResponse = JSON.parse(step.response);
+
+                // If it's a JSON response, format it nicely
+                const formattedJson = JSON.stringify(jsonResponse, null, 2);
+                contentContainer.innerHTML = `<pre class="reasoning-json-response">${formattedJson}</pre>`;
+            } catch (e) {
+                // If it's not JSON, just set the text content
+                contentContainer.textContent = step.response;
+            }
+        }
+
+        // If failed, add the error
+        if (step.status === 'failed' && step.error) {
+            const contentContainer = stepElement.querySelector('.reasoning-step-content');
+            contentContainer.innerHTML = `<div class="reasoning-error">${step.error}</div>`;
+        }
+
+        // Scroll to the bottom of the chat panel
+        const chatMessages = document.getElementById('chat-messages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     // Initialize WebSocket connection when the page loads

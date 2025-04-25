@@ -452,6 +452,9 @@ class AIReasoning:
             model_used="o1" if step_type in ["planning", "analysis", "conclusion"] else "gpt-4o"
         )
 
+        # Send a WebSocket notification that the step has started
+        self._send_step_notification(session, step, "started")
+
         try:
             # Create the agent for this step
             agent = self.create_agent(step_type)
@@ -464,13 +467,72 @@ class AIReasoning:
             step.is_complete = True
             step.save()
 
+            # Send a WebSocket notification that the step has completed
+            self._send_step_notification(session, step, "completed")
+
             return step
 
         except Exception as e:
             logger.exception(f"Error executing reasoning step: {str(e)}")
             step.error = str(e)
             step.save()
+
+            # Send a WebSocket notification that the step has failed
+            self._send_step_notification(session, step, "failed", error=str(e))
+
             raise
+
+    def _send_step_notification(self, session: ReasoningSession, step: ReasoningStep, status: str, error: str = None):
+        """
+        Send a WebSocket notification about a reasoning step.
+
+        Args:
+            session: The reasoning session
+            step: The reasoning step
+            status: The status of the step (started, completed, failed)
+            error: Optional error message
+        """
+        try:
+            # Import here to avoid circular imports
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+
+            # Get the channel layer
+            channel_layer = get_channel_layer()
+
+            # Get the project ID
+            project_id = session.project.id
+
+            # Prepare step data
+            step_data = {
+                'id': step.id,
+                'step_number': step.step_number,
+                'step_type': step.step_type,
+                'status': status,
+                'model_used': step.model_used,
+            }
+
+            # Add response if completed
+            if status == 'completed':
+                step_data['response'] = step.response
+
+            # Add error if failed
+            if status == 'failed' and error:
+                step_data['error'] = error
+
+            # Send the notification to the group
+            async_to_sync(channel_layer.group_send)(
+                f"tools_{project_id}",
+                {
+                    "type": "reasoning_step",
+                    "session_id": session.id,
+                    "step": step_data
+                }
+            )
+
+            logger.info(f"Sent WebSocket notification for reasoning step: {step.step_type} ({status})")
+        except Exception as e:
+            logger.exception(f"Error sending WebSocket notification for reasoning step: {str(e)}")
 
     def execute_reasoning_chain(self, task_description: str,
                                context: Optional[Dict[str, Any]] = None) -> ReasoningSession:
