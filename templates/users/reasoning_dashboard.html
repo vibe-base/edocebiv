@@ -11,7 +11,7 @@
                 <i class="bi bi-arrow-left"></i> Back to Project
             </a>
         </div>
-        
+
         <div class="card-body">
             <div class="row mb-4">
                 <div class="col-md-12">
@@ -41,9 +41,9 @@
                     </div>
                 </div>
             </div>
-            
+
             <h5 class="mb-3">Previous Reasoning Sessions</h5>
-            
+
             <div id="sessions-container">
                 {% if sessions %}
                     {% for session in sessions %}
@@ -100,24 +100,24 @@
         const executeFullReasoningBtn = document.getElementById('execute-full-reasoning-btn');
         const taskDescriptionInput = document.getElementById('task-description');
         const loadingModal = new bootstrap.Modal(document.getElementById('loading-modal'));
-        
+
         // Start a new reasoning session
         startReasoningBtn.addEventListener('click', function() {
             const taskDescription = taskDescriptionInput.value.trim();
-            
+
             if (!taskDescription) {
                 alert('Please enter a task description');
                 return;
             }
-            
+
             // Show loading modal
             loadingModal.show();
             document.getElementById('loading-message').textContent = 'Creating a new reasoning session...';
-            
+
             // Get current file information if available
             let currentFile = null;
             let currentFileContent = null;
-            
+
             // Make API request
             fetch('{% url "start_reasoning" project.pk %}', {
                 method: 'POST',
@@ -134,10 +134,10 @@
             .then(response => response.json())
             .then(data => {
                 loadingModal.hide();
-                
+
                 if (data.status === 'success') {
                     // Redirect to the session detail page
-                    window.location.href = `{% url 'reasoning_session_detail' project.pk %}${data.session_id}/`;
+                    window.location.href = `{% url 'reasoning_dashboard' project.pk %}sessions/${data.session_id}/`;
                 } else {
                     alert(`Error: ${data.message}`);
                 }
@@ -147,24 +147,24 @@
                 alert(`Error: ${error.message}`);
             });
         });
-        
+
         // Execute full reasoning chain
         executeFullReasoningBtn.addEventListener('click', function() {
             const taskDescription = taskDescriptionInput.value.trim();
-            
+
             if (!taskDescription) {
                 alert('Please enter a task description');
                 return;
             }
-            
+
             // Show loading modal
             loadingModal.show();
             document.getElementById('loading-message').textContent = 'Executing full reasoning chain. This may take several minutes...';
-            
+
             // Get current file information if available
             let currentFile = null;
             let currentFileContent = null;
-            
+
             // Make API request
             fetch('{% url "execute_full_reasoning" project.pk %}', {
                 method: 'POST',
@@ -181,10 +181,10 @@
             .then(response => response.json())
             .then(data => {
                 loadingModal.hide();
-                
+
                 if (data.status === 'success') {
                     // Redirect to the session detail page
-                    window.location.href = `{% url 'reasoning_session_detail' project.pk %}${data.session.id}/`;
+                    window.location.href = `{% url 'reasoning_dashboard' project.pk %}sessions/${data.session.id}/`;
                 } else {
                     alert(`Error: ${data.message}`);
                 }
