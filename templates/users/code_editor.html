@@ -3145,6 +3145,148 @@
         chatSendBtn.disabled = true;
         chatInput.placeholder = "Add your OpenAI API key in profile settings to use the chat...";
         {% endif %}
+
+        // Preview panel functionality
+        const previewPanel = document.getElementById('preview-panel');
+        const previewToggleBtn = document.getElementById('preview-toggle-btn');
+        const previewCloseBtn = document.getElementById('preview-close-btn');
+        const previewRefreshBtn = document.getElementById('preview-refresh-btn');
+        const previewExternalBtn = document.getElementById('preview-external-btn');
+        const previewIframe = document.getElementById('preview-iframe');
+        const previewLoading = document.getElementById('preview-loading');
+        const previewError = document.getElementById('preview-error');
+        const previewErrorMessage = document.getElementById('preview-error-message');
+        const mainContent = document.querySelector('.main-content');
+
+        // Function to open the preview panel
+        function openPreviewPanel() {
+            if (!previewPanel) return;
+
+            console.log('Opening preview panel');
+
+            // Add the preview-active class to the main content
+            mainContent.classList.add('preview-active');
+
+            // Show the preview panel
+            previewPanel.style.display = 'flex';
+
+            // Update state
+            isPreviewPanelOpen = true;
+
+            // Load the preview
+            loadPreview();
+        }
+
+        // Function to close the preview panel
+        function closePreviewPanel() {
+            if (!previewPanel) return;
+
+            console.log('Closing preview panel');
+
+            // Remove the preview-active class from the main content
+            mainContent.classList.remove('preview-active');
+
+            // Hide the preview panel
+            previewPanel.style.display = 'none';
+
+            // Update state
+            isPreviewPanelOpen = false;
+        }
+
+        // Function to load the preview
+        function loadPreview() {
+            // Show loading indicator
+            previewLoading.style.display = 'flex';
+            previewError.style.display = 'none';
+
+            // Get the project ID
+            const projectId = {{ project.id }};
+
+            // Check if the container is running
+            const containerRunning = {% if container_running %}true{% else %}false{% endif %};
+
+            if (containerRunning) {
+                // Set the iframe src to the preview URL
+                const previewUrl = `/users/projects/${projectId}/preview/`;
+
+                console.log('Loading preview from:', previewUrl);
+
+                // Set the iframe src
+                previewIframe.src = previewUrl;
+
+                // Handle iframe load event
+                previewIframe.onload = function() {
+                    // Hide loading indicator
+                    previewLoading.style.display = 'none';
+
+                    console.log('Preview loaded successfully');
+                };
+
+                // Handle iframe error event
+                previewIframe.onerror = function() {
+                    // Hide loading indicator
+                    previewLoading.style.display = 'none';
+
+                    // Show error message
+                    previewError.style.display = 'block';
+                    previewErrorMessage.textContent = 'Failed to load preview. The web server may not be running in the container.';
+
+                    console.error('Failed to load preview');
+                };
+            } else {
+                // Hide loading indicator
+                previewLoading.style.display = 'none';
+
+                // Show error message
+                previewError.style.display = 'block';
+                previewErrorMessage.textContent = 'Container is not running. Start the container to preview your web application.';
+
+                console.error('Container is not running');
+            }
+        }
+
+        // Listen for preview toggle button click
+        if (previewToggleBtn) {
+            previewToggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                if (isPreviewPanelOpen) {
+                    closePreviewPanel();
+                } else {
+                    openPreviewPanel();
+                }
+            });
+        }
+
+        // Listen for preview close button click
+        if (previewCloseBtn) {
+            previewCloseBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                closePreviewPanel();
+            });
+        }
+
+        // Listen for preview refresh button click
+        if (previewRefreshBtn) {
+            previewRefreshBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                loadPreview();
+            });
+        }
+
+        // Listen for preview external button click
+        if (previewExternalBtn) {
+            previewExternalBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                // Get the project ID
+                const projectId = {{ project.id }};
+
+                // Open the preview in a new tab
+                const previewUrl = `/users/projects/${projectId}/preview/`;
+                window.open(previewUrl, '_blank');
+            });
+        }
     });
 
     // Modal functionality
@@ -4012,148 +4154,6 @@
             reasoningModeCheckbox.addEventListener('change', function() {
                 isReasoningModeOn = this.checked;
                 saveUserPreferences();
-            });
-        }
-
-        // Preview panel functionality
-        const previewPanel = document.getElementById('preview-panel');
-        const previewToggleBtn = document.getElementById('preview-toggle-btn');
-        const previewCloseBtn = document.getElementById('preview-close-btn');
-        const previewRefreshBtn = document.getElementById('preview-refresh-btn');
-        const previewExternalBtn = document.getElementById('preview-external-btn');
-        const previewIframe = document.getElementById('preview-iframe');
-        const previewLoading = document.getElementById('preview-loading');
-        const previewError = document.getElementById('preview-error');
-        const previewErrorMessage = document.getElementById('preview-error-message');
-        const mainContent = document.querySelector('.main-content');
-
-        // Function to open the preview panel
-        function openPreviewPanel() {
-            if (!previewPanel) return;
-
-            console.log('Opening preview panel');
-
-            // Add the preview-active class to the main content
-            mainContent.classList.add('preview-active');
-
-            // Show the preview panel
-            previewPanel.style.display = 'flex';
-
-            // Update state
-            isPreviewPanelOpen = true;
-
-            // Load the preview
-            loadPreview();
-        }
-
-        // Function to close the preview panel
-        function closePreviewPanel() {
-            if (!previewPanel) return;
-
-            console.log('Closing preview panel');
-
-            // Remove the preview-active class from the main content
-            mainContent.classList.remove('preview-active');
-
-            // Hide the preview panel
-            previewPanel.style.display = 'none';
-
-            // Update state
-            isPreviewPanelOpen = false;
-        }
-
-        // Function to load the preview
-        function loadPreview() {
-            // Show loading indicator
-            previewLoading.style.display = 'flex';
-            previewError.style.display = 'none';
-
-            // Get the project ID
-            const projectId = {{ project.id }};
-
-            // Check if the container is running
-            const containerRunning = {% if container_running %}true{% else %}false{% endif %};
-
-            if (containerRunning) {
-                // Set the iframe src to the preview URL
-                const previewUrl = `/users/projects/${projectId}/preview/`;
-
-                console.log('Loading preview from:', previewUrl);
-
-                // Set the iframe src
-                previewIframe.src = previewUrl;
-
-                // Handle iframe load event
-                previewIframe.onload = function() {
-                    // Hide loading indicator
-                    previewLoading.style.display = 'none';
-
-                    console.log('Preview loaded successfully');
-                };
-
-                // Handle iframe error event
-                previewIframe.onerror = function() {
-                    // Hide loading indicator
-                    previewLoading.style.display = 'none';
-
-                    // Show error message
-                    previewError.style.display = 'block';
-                    previewErrorMessage.textContent = 'Failed to load preview. The web server may not be running in the container.';
-
-                    console.error('Failed to load preview');
-                };
-            } else {
-                // Hide loading indicator
-                previewLoading.style.display = 'none';
-
-                // Show error message
-                previewError.style.display = 'block';
-                previewErrorMessage.textContent = 'Container is not running. Start the container to preview your web application.';
-
-                console.error('Container is not running');
-            }
-        }
-
-        // Listen for preview toggle button click
-        if (previewToggleBtn) {
-            previewToggleBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-
-                if (isPreviewPanelOpen) {
-                    closePreviewPanel();
-                } else {
-                    openPreviewPanel();
-                }
-            });
-        }
-
-        // Listen for preview close button click
-        if (previewCloseBtn) {
-            previewCloseBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                closePreviewPanel();
-            });
-        }
-
-        // Listen for preview refresh button click
-        if (previewRefreshBtn) {
-            previewRefreshBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                loadPreview();
-            });
-        }
-
-        // Listen for preview external button click
-        if (previewExternalBtn) {
-            previewExternalBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-
-                // Get the project ID
-                const projectId = {{ project.id }};
-
-                // Open the preview in a new tab
-                const previewUrl = `/users/projects/${projectId}/preview/`;
-                window.open(previewUrl, '_blank');
             });
         }
     });
