@@ -494,6 +494,86 @@ class FileOperations(MCP):
                 "file_path": file_path
             }
 
+    @tool(name="pip_install", description="Install Python packages using pip in the project's container")
+    def pip_install(self, packages):
+        """
+        Install Python packages using pip in the project's container.
+
+        :param packages: Space-separated list of packages to install (e.g., "numpy pandas matplotlib")
+        :return: Dict with installation result
+        """
+        logger.info(f"Installing pip packages: {packages}")
+
+        try:
+            # Normalize and validate packages
+            packages = packages.strip()
+            if not packages:
+                return {
+                    "status": "error",
+                    "message": "No packages specified."
+                }
+
+            # Check if the container is running
+            container_status = docker_manager.get_container_status(self.project)
+            if container_status != 'running':
+                return {
+                    "status": "error",
+                    "message": f"Container is not running. Current status: {container_status}."
+                }
+
+            # Prepare the pip install command
+            command = f"pip install {packages}"
+
+            # Execute the command in the container
+            container_id = self.project.container_id
+            exec_command = ["docker", "exec", container_id, "bash", "-c", command]
+
+            logger.info(f"Executing pip install in container: {' '.join(exec_command)}")
+
+            # Run the command and capture output
+            result = subprocess.run(
+                exec_command,
+                capture_output=True,
+                text=True,
+                timeout=120  # 2 minute timeout for pip installations
+            )
+
+            # Prepare the output
+            stdout = result.stdout.strip()
+            stderr = result.stderr.strip()
+
+            if result.returncode == 0:
+                status = "success"
+                message = f"Packages installed successfully: {packages}"
+            else:
+                status = "error"
+                message = f"Error installing packages: {packages}"
+
+            return {
+                "status": status,
+                "message": message,
+                "packages": packages,
+                "command": command,
+                "stdout": stdout,
+                "stderr": stderr,
+                "return_code": result.returncode
+            }
+
+        except subprocess.TimeoutExpired:
+            return {
+                "status": "error",
+                "message": f"Installation timed out after 120 seconds.",
+                "packages": packages,
+                "command": command if 'command' in locals() else None
+            }
+        except Exception as e:
+            logger.exception(f"Error installing packages: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Error installing packages: {str(e)}",
+                "packages": packages
+            }
+
     @tool(name="apply_patch", description="Apply a patch to a file")
     def apply_patch(self, file_path, patch_content):
         """

@@ -387,12 +387,74 @@ class AIReasoning:
                 raise ValueError(result["message"])
             return result["message"]
 
+        @tool
+        def generate_diff(original_content: str, new_content: str, file_path: str = None) -> str:
+            """
+            Generate a diff between original and new content.
+
+            Args:
+                original_content: Original content
+                new_content: New content
+                file_path: Optional file path for context
+
+            Returns:
+                Diff between original and new content
+            """
+            result = self.file_ops.generate_diff(original_content, new_content, file_path)
+            if result["status"] == "error":
+                raise ValueError(result["message"])
+            return result["diff"]
+
+        @tool
+        def apply_patch(file_path: str, patch_content: str) -> str:
+            """
+            Apply a patch to a file.
+
+            Args:
+                file_path: Path to the file to patch
+                patch_content: The patch content to apply
+
+            Returns:
+                Result of applying the patch
+            """
+            result = self.file_ops.apply_patch(file_path, patch_content)
+            if result["status"] == "error":
+                raise ValueError(result["message"])
+            return f"Patch applied successfully to {file_path}"
+
+        @tool
+        def pip_install(packages: str) -> str:
+            """
+            Install Python packages using pip in the project's container.
+
+            Args:
+                packages: Space-separated list of packages to install (e.g., "numpy pandas matplotlib")
+
+            Returns:
+                Result of the installation
+            """
+            result = self.file_ops.pip_install(packages)
+            if result["status"] == "error":
+                raise ValueError(result["message"])
+
+            output = f"Packages installed: {packages}\n\n"
+            if result["stdout"]:
+                output += f"STDOUT:\n{result['stdout']}\n\n"
+            if result["stderr"]:
+                output += f"STDERR:\n{result['stderr']}\n\n"
+            output += f"Exit code: {result['return_code']}"
+
+            return output
+
         return [
             read_file,
             write_file,
             list_files,
             run_file,
-            delete_file
+            delete_file,
+            generate_diff,
+            apply_patch,
+            pip_install
         ]
 
     def create_session(self, title: str, description: str = "") -> ReasoningSession:

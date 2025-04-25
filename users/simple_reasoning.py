@@ -43,6 +43,7 @@ The following tools will be available in later steps, but you should NOT use the
 - delete_file: Delete a file or directory in the project
 - generate_diff: Generate a diff between original and new content
 - apply_patch: Apply a patch to a file
+- pip_install: Install Python packages using pip in the project's container
 
 Be thorough but concise. Focus on creating a practical, step-by-step plan that will be executed in later steps.
 """,
@@ -88,6 +89,7 @@ You have access to the following tools that you MUST use to accomplish the task:
 - list_files: List files and directories in a directory
 - generate_diff: Generate a diff between original and new content
 - apply_patch: Apply a patch to a file
+- pip_install: Install Python packages using pip in the project's container
 
 IMPORTANT: You MUST use the write_file tool to create files. DO NOT just describe the code.
 
@@ -157,6 +159,7 @@ You have access to the following tools that you MUST use to accomplish the task:
 - run_file: Run a file in the project's container
 - generate_diff: Generate a diff between original and new content
 - apply_patch: Apply a patch to a file
+- pip_install: Install Python packages using pip in the project's container
 
 IMPORTANT: You MUST use the run_file tool to execute the code. DO NOT just describe how to run it.
 
@@ -226,6 +229,7 @@ You have access to the following tools that you MUST use to accomplish the task:
 - run_file: Run a file in the project's container
 - generate_diff: Generate a diff between original and new content
 - apply_patch: Apply a patch to a file
+- pip_install: Install Python packages using pip in the project's container
 
 DO NOT just describe the tests - actually create and run them using the tools.
 
@@ -261,6 +265,7 @@ You have access to the following tools that you MUST use to accomplish the task:
 - run_file: Run a file in the project's container
 - generate_diff: Generate a diff between original and new content
 - apply_patch: Apply a patch to a file
+- pip_install: Install Python packages using pip in the project's container
 
 For small changes to existing files, use generate_diff and apply_patch:
 ```
@@ -492,6 +497,23 @@ class SimpleReasoning:
                         "required": ["file_path", "patch_content"]
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "pip_install",
+                    "description": "Install Python packages using pip in the project's container.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "packages": {
+                                "type": "string",
+                                "description": "Space-separated list of packages to install (e.g., 'numpy pandas matplotlib')"
+                            }
+                        },
+                        "required": ["packages"]
+                    }
+                }
             }
         ]
 
@@ -581,6 +603,15 @@ class SimpleReasoning:
 
                 logger.info(f"Applying patch to file: {file_path}")
                 result = self.file_ops.apply_patch(file_path, patch_content)
+
+            elif tool_name == "pip_install":
+                packages = arguments.get("packages", "")
+
+                if not packages:
+                    return {"status": "error", "message": "No packages provided"}
+
+                logger.info(f"Installing pip packages: {packages}")
+                result = self.file_ops.pip_install(packages)
 
             else:
                 logger.warning(f"Unknown tool: {tool_name}")
