@@ -8,8 +8,6 @@ import logging
 import requests
 from typing import Dict, Any, List, Optional
 
-from django.conf import settings
-
 from .models import Project, ReasoningSession, ReasoningStep
 from .file_operations import FileOperations
 
@@ -33,6 +31,18 @@ You have access to the following tools that you MUST use to accomplish the task:
 - generate_diff: Generate a diff between original and new content
 - apply_patch: Apply a patch to a file
 
+To use a tool, format your response like this:
+```
+<tool>
+{
+  "name": "list_files",
+  "arguments": {
+    "directory_path": "/"
+  }
+}
+</tool>
+```
+
 Be thorough but concise. Focus on creating a practical, step-by-step plan that you will execute.
 """,
 
@@ -47,6 +57,18 @@ You have access to the following tools that you MUST use to accomplish the task:
 - read_file: Read the content of a file in the project
 - list_files: List files and directories in a directory
 - generate_diff: Generate a diff between original and new content
+
+To use a tool, format your response like this:
+```
+<tool>
+{
+  "name": "read_file",
+  "arguments": {
+    "file_path": "example.py"
+  }
+}
+</tool>
+```
 
 Be thorough and precise in your analysis. This will be used to guide further actions.
 """,
@@ -67,38 +89,55 @@ You have access to the following tools that you MUST use to accomplish the task:
 - apply_patch: Apply a patch to a file
 
 IMPORTANT: You MUST use the write_file tool to create files. DO NOT just describe the code.
-Example of using the write_file tool:
+
+To use a tool, format your response like this:
 ```
 I'll create a Python file that prints "Hello, World!":
 
-[Tool Call: write_file]
+<tool>
 {
-  "file_path": "hello.py",
-  "content": "print('Hello, World!')"
+  "name": "write_file",
+  "arguments": {
+    "file_path": "hello.py",
+    "content": "print('Hello, World!')"
+  }
 }
+</tool>
 ```
 
 For modifying existing files, you can use generate_diff and apply_patch:
 ```
 I'll update the existing file by generating a diff and applying it:
 
-[Tool Call: read_file]
+<tool>
 {
-  "file_path": "hello.py"
+  "name": "read_file",
+  "arguments": {
+    "file_path": "hello.py"
+  }
 }
+</tool>
 
-[Tool Call: generate_diff]
+<tool>
 {
-  "original_content": "print('Hello, World!')",
-  "new_content": "print('Hello, Updated World!')",
-  "file_path": "hello.py"
+  "name": "generate_diff",
+  "arguments": {
+    "original_content": "print('Hello, World!')",
+    "new_content": "print('Hello, Updated World!')",
+    "file_path": "hello.py"
+  }
 }
+</tool>
 
-[Tool Call: apply_patch]
+<tool>
 {
-  "file_path": "hello.py",
-  "patch_content": "--- original/hello.py\\n+++ new/hello.py\\n@@ -1 +1 @@\\n-print('Hello, World!')\\n+print('Hello, Updated World!')"
+  "name": "apply_patch",
+  "arguments": {
+    "file_path": "hello.py",
+    "patch_content": "--- original/hello.py\\n+++ new/hello.py\\n@@ -1 +1 @@\\n-print('Hello, World!')\\n+print('Hello, Updated World!')"
+  }
 }
+</tool>
 ```
 
 After using the tools, verify the results and proceed with the next steps.
@@ -119,37 +158,54 @@ You have access to the following tools that you MUST use to accomplish the task:
 - apply_patch: Apply a patch to a file
 
 IMPORTANT: You MUST use the run_file tool to execute the code. DO NOT just describe how to run it.
-Example of using the run_file tool:
+
+To use a tool, format your response like this:
 ```
 I'll run the Python file:
 
-[Tool Call: run_file]
+<tool>
 {
-  "file_path": "hello.py"
+  "name": "run_file",
+  "arguments": {
+    "file_path": "hello.py"
+  }
 }
+</tool>
 ```
 
 If you need to fix issues in the code, you can use generate_diff and apply_patch:
 ```
 I'll fix the code by generating a diff and applying it:
 
-[Tool Call: read_file]
+<tool>
 {
-  "file_path": "hello.py"
+  "name": "read_file",
+  "arguments": {
+    "file_path": "hello.py"
+  }
 }
+</tool>
 
-[Tool Call: generate_diff]
+<tool>
 {
-  "original_content": "print('Hello, World!'",  # Note the missing closing parenthesis
-  "new_content": "print('Hello, World!')",  # Fixed version
-  "file_path": "hello.py"
+  "name": "generate_diff",
+  "arguments": {
+    "original_content": "print('Hello, World!'",  # Note the missing closing parenthesis
+    "new_content": "print('Hello, World!')",  # Fixed version
+    "file_path": "hello.py"
+  }
 }
+</tool>
 
-[Tool Call: apply_patch]
+<tool>
 {
-  "file_path": "hello.py",
-  "patch_content": "--- original/hello.py\\n+++ new/hello.py\\n@@ -1 +1 @@\\n-print('Hello, World!'\\n+print('Hello, World!')"
+  "name": "apply_patch",
+  "arguments": {
+    "file_path": "hello.py",
+    "patch_content": "--- original/hello.py\\n+++ new/hello.py\\n@@ -1 +1 @@\\n-print('Hello, World!'\\n+print('Hello, World!')"
+  }
 }
+</tool>
 ```
 
 After running the file, analyze the output and fix any issues if needed.
@@ -171,6 +227,22 @@ You have access to the following tools that you MUST use to accomplish the task:
 - apply_patch: Apply a patch to a file
 
 DO NOT just describe the tests - actually create and run them using the tools.
+
+To use a tool, format your response like this:
+```
+I'll create a test file:
+
+<tool>
+{
+  "name": "write_file",
+  "arguments": {
+    "file_path": "test_hello.py",
+    "content": "import unittest\\n\\nclass TestHello(unittest.TestCase):\\n    def test_hello(self):\\n        # Test code here\\n        pass\\n\\nif __name__ == '__main__':\\n    unittest.main()"
+  }
+}
+</tool>
+```
+
 If you need to modify existing test files, use generate_diff and apply_patch.
 Be thorough and methodical in your approach to testing.
 """,
@@ -193,23 +265,35 @@ For small changes to existing files, use generate_diff and apply_patch:
 ```
 I'll refactor this code by generating a diff and applying it:
 
-[Tool Call: read_file]
+<tool>
 {
-  "file_path": "example.py"
+  "name": "read_file",
+  "arguments": {
+    "file_path": "example.py"
+  }
 }
+</tool>
 
-[Tool Call: generate_diff]
+<tool>
 {
-  "original_content": "def calculate(x, y):\\n    return x + y",
-  "new_content": "def calculate(x, y):\\n    \"\"\"Add two numbers and return the result.\"\"\"\\n    return x + y",
-  "file_path": "example.py"
+  "name": "generate_diff",
+  "arguments": {
+    "original_content": "def calculate(x, y):\\n    return x + y",
+    "new_content": "def calculate(x, y):\\n    \"\"\"Add two numbers and return the result.\"\"\"\\n    return x + y",
+    "file_path": "example.py"
+  }
 }
+</tool>
 
-[Tool Call: apply_patch]
+<tool>
 {
-  "file_path": "example.py",
-  "patch_content": "--- original/example.py\\n+++ new/example.py\\n@@ -1 +1,2 @@\\n def calculate(x, y):\\n+    \"\"\"Add two numbers and return the result.\"\"\"\\n     return x + y"
+  "name": "apply_patch",
+  "arguments": {
+    "file_path": "example.py",
+    "patch_content": "--- original/example.py\\n+++ new/example.py\\n@@ -1 +1,2 @@\\n def calculate(x, y):\\n+    \"\"\"Add two numbers and return the result.\"\"\"\\n     return x + y"
+  }
 }
+</tool>
 ```
 
 DO NOT just suggest improvements - actually implement them using the appropriate tools.
@@ -222,6 +306,8 @@ Your job is to:
 2. Highlight key changes or improvements made
 3. Note any remaining issues or future work
 4. Provide a clear conclusion to the reasoning session
+
+You do not need to use any tools for this step. Just provide a clear, concise summary of the work done.
 
 Be concise but comprehensive in your summary.
 """
@@ -612,14 +698,10 @@ class SimpleReasoning:
             # Force tool use for certain step types
             if force_tool and len(self.tools) > 0:
                 # Force the model to use tools
-                # When forcing tool use, we need to specify "auto" for the function
-                # This tells the model to choose which function to call
-                payload["tool_choice"] = {
-                    "type": "function",
-                    "function": {"name": "auto"}
-                }
+                # For the OpenAI API, we just need to use "auto" to let the model choose which tool to use
+                payload["tool_choice"] = "auto"
             else:
-                # Let the model decide when to use tools
+                # Let the model decide whether to use tools at all
                 payload["tool_choice"] = "auto"
 
             logger.info(f"Sending request to OpenAI with {len(self.tools)} tools")
@@ -749,14 +831,10 @@ class SimpleReasoning:
                     # Force tool use for certain step types and early rounds
                     if (force_tool and current_round <= 2) and len(self.tools) > 0:
                         # Force the model to use tools in early rounds
-                        # When forcing tool use, we need to specify "auto" for the function
-                        # This tells the model to choose which function to call
-                        follow_up_payload["tool_choice"] = {
-                            "type": "function",
-                            "function": {"name": "auto"}
-                        }
+                        # For the OpenAI API, we just need to use "auto" to let the model choose which tool to use
+                        follow_up_payload["tool_choice"] = "auto"
                     else:
-                        # Let the model decide when to use tools
+                        # Let the model decide whether to use tools at all
                         follow_up_payload["tool_choice"] = "auto"
 
                     follow_up_response = requests.post(
@@ -985,7 +1063,8 @@ Provide a summary of what was accomplished:
 
 Be concise but comprehensive in your summary.
 """
-            conclusion_step = self.execute_step(session, "conclusion", conclusion_prompt)
+            # Execute the conclusion step
+            self.execute_step(session, "conclusion", conclusion_prompt)
 
             # Mark session as complete
             session.is_complete = True
