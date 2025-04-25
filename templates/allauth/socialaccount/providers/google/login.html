@@ -10,20 +10,20 @@
                 <div class="card-header bg-primary text-white">
                     <h3 class="card-title mb-0 text-center">Sign In with Google</h3>
                 </div>
-                <div class="card-body"> 
-                    
+                <div class="card-body">
+
                     <p class="text-center mb-4">
                         You're about to sign in to <strong>Edocebiv</strong> using your Google account.
                     </p>
-                    
+
                     <div class="alert alert-info">
                         <p class="mb-0">
-                            <i class="bi bi-info-circle"></i> 
+                            <i class="bi bi-info-circle"></i>
                             This secure process is handled by Google. We will not have access to your Google password.
                         </p>
                     </div>
-                    
-                    <form method="post">
+
+                    <form method="post" id="google-login-form">
                         {% csrf_token %}
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-danger">
@@ -42,4 +42,14 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Prevent the form from being submitted multiple times
+    document.getElementById('google-login-form').addEventListener('submit', function(e) {
+        // Disable the submit button to prevent multiple submissions
+        const submitButton = this.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Connecting to Google...';
+    });
+</script>
 {% endblock %}

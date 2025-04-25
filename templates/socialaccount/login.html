@@ -25,22 +25,22 @@
                             <i class="bi bi-person-circle" style="font-size: 3rem;"></i>
                         {% endif %}
                     </div>
-                    
+
                     <p class="text-center mb-4">
                         {% blocktrans with provider_name=provider.name site_name=site.name %}You are about to sign in to {{ site_name }} using your {{ provider_name }} account.{% endblocktrans %}
                     </p>
-                    
+
                     <div class="alert alert-info">
                         <p class="mb-0">
-                            <i class="bi bi-info-circle"></i> 
+                            <i class="bi bi-info-circle"></i>
                             {% blocktrans with provider_name=provider.name %}This secure process is handled by {{ provider_name }}. We will not have access to your {{ provider_name }} password.{% endblocktrans %}
                         </p>
                     </div>
-                    
-                    <form method="post">
+
+                    <form method="post" id="social-login-form">
                         {% csrf_token %}
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn 
+                            <button type="submit" class="btn
                                 {% if provider.name == 'Google' %}btn-danger{% elif provider.name == 'Facebook' %}btn-primary{% elif provider.name == 'Twitter' %}btn-info{% elif provider.name == 'GitHub' %}btn-dark{% else %}btn-secondary{% endif %}">
                                 {% if provider.name == 'Google' %}
                                     <i class="bi bi-google me-2"></i>
@@ -68,4 +68,33 @@
         </div>
     </div>
 </div>
+<script>
+    // Prevent the form from being submitted multiple times
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('social-login-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // Disable the submit button to prevent multiple submissions
+                const submitButton = this.querySelector('button[type="submit"]');
+                if (submitButton) {
+                    submitButton.disabled = true;
+
+                    // Save the original button text
+                    const originalText = submitButton.innerHTML;
+
+                    // Show loading spinner
+                    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Connecting...';
+
+                    // If the form submission takes too long, re-enable the button after 30 seconds
+                    setTimeout(function() {
+                        if (submitButton.disabled) {
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = originalText;
+                        }
+                    }, 30000);
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}
