@@ -17,6 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,3 +30,7 @@ urlpatterns = [
     path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain')),
     path('sitemap.xml', TemplateView.as_view(template_name='sitemap.xml', content_type='application/xml')),
 ]
+
+# Serve static files from Django
+# This is not recommended for production, but we're doing it to fix MIME type issues
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
