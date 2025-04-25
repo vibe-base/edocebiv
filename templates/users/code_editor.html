@@ -135,11 +135,15 @@
         transition: all 0.3s ease;
         overflow: hidden;
         max-width: 350px; /* Add max-width to ensure it doesn't exceed this size */
+        min-width: 350px; /* Add min-width to ensure it's at least this size when open */
+        position: relative; /* Ensure proper stacking context */
+        z-index: 10; /* Ensure it's above other elements */
     }
 
     .chat-panel.collapsed {
-        width: 0;
-        max-width: 0; /* Also set max-width to 0 when collapsed */
+        width: 0 !important; /* Use !important to override inline styles if needed */
+        max-width: 0 !important; /* Also set max-width to 0 when collapsed */
+        min-width: 0 !important; /* Reset min-width when collapsed */
         border-left: none;
         visibility: visible; /* Keep it visible for transition */
         opacity: 1;
@@ -1110,7 +1114,7 @@
         </div>
 
         <!-- Chat panel -->
-        <div id="chat-panel" class="chat-panel collapsed">
+        <div id="chat-panel" class="chat-panel {% if not user_profile.is_assistant_window_open %}collapsed{% endif %}">
             <div class="chat-header">
                 <h3><i class="bi bi-robot"></i> AI Assistant</h3>
                 <div class="chat-header-actions">
@@ -2553,23 +2557,46 @@
 
         console.log('Initial assistant window state:', isAssistantWindowOpen ? 'open' : 'closed');
 
+        // Immediately set the initial state of the chat panel based on the HTML attribute
+        if (chatPanel) {
+            // If the user preference is to have the assistant window open, remove the collapsed class from the HTML
+            if (isAssistantWindowOpen) {
+                // Remove the collapsed class from the HTML
+                chatPanel.removeAttribute('class');
+                chatPanel.setAttribute('class', 'chat-panel');
+                console.log('Removed collapsed class from chat panel HTML');
+            }
+        }
+
         // Function to open the chat panel
         function openChatPanel() {
             if (!chatPanel) return;
 
             console.log('Opening chat panel');
+
+            // First remove the collapsed class
             chatPanel.classList.remove('collapsed');
-            chatPanel.style.width = '350px';
-            chatPanel.style.maxWidth = '350px';
 
-            const chatToggleButton = document.getElementById('chat-toggle-btn');
-            if (chatToggleButton) {
-                chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
-            }
+            // Force a reflow to ensure the browser processes the class change
+            void chatPanel.offsetWidth;
 
-            isAssistantWindowOpen = true;
-            saveUserPreferences();
-            console.log('Chat panel opened');
+            // Set the width explicitly with a slight delay to ensure the transition works
+            setTimeout(function() {
+                chatPanel.style.width = '350px';
+                chatPanel.style.maxWidth = '350px';
+                chatPanel.style.minWidth = '350px';
+
+                // Update the toggle button icon
+                const chatToggleButton = document.getElementById('chat-toggle-btn');
+                if (chatToggleButton) {
+                    chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
+                }
+
+                // Update the state and save preferences
+                isAssistantWindowOpen = true;
+                saveUserPreferences();
+                console.log('Chat panel opened successfully');
+            }, 50);
         }
 
         // Function to close the chat panel
@@ -2577,28 +2604,90 @@
             if (!chatPanel) return;
 
             console.log('Closing chat panel');
+
+            // First add the collapsed class
             chatPanel.classList.add('collapsed');
-            chatPanel.style.width = '0';
-            chatPanel.style.maxWidth = '0';
 
-            const chatToggleButton = document.getElementById('chat-toggle-btn');
-            if (chatToggleButton) {
-                chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
-            }
+            // Force a reflow to ensure the browser processes the class change
+            void chatPanel.offsetWidth;
 
-            isAssistantWindowOpen = false;
-            saveUserPreferences();
-            console.log('Chat panel closed');
+            // Set the width explicitly with a slight delay to ensure the transition works
+            setTimeout(function() {
+                chatPanel.style.width = '0';
+                chatPanel.style.maxWidth = '0';
+                chatPanel.style.minWidth = '0';
+
+                // Update the toggle button icon
+                const chatToggleButton = document.getElementById('chat-toggle-btn');
+                if (chatToggleButton) {
+                    chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
+                }
+
+                // Update the state and save preferences
+                isAssistantWindowOpen = false;
+                saveUserPreferences();
+                console.log('Chat panel closed successfully');
+            }, 50);
         }
 
         // Set initial state based on user preferences
-        if (isAssistantWindowOpen) {
-            // Use setTimeout to ensure the DOM is fully loaded
-            setTimeout(openChatPanel, 100);
-        } else {
-            // Make sure it's closed (it should be by default)
-            setTimeout(closeChatPanel, 100);
-        }
+        // Use a longer timeout to ensure everything is fully loaded
+        setTimeout(function() {
+            console.log('Setting initial assistant window state:', isAssistantWindowOpen ? 'open' : 'closed');
+
+            // First make sure the panel is in the correct state
+            if (isAssistantWindowOpen) {
+                // Force the panel to be open - first remove the collapsed class
+                chatPanel.classList.remove('collapsed');
+
+                // Force a reflow
+                void chatPanel.offsetWidth;
+
+                // Set the width explicitly
+                chatPanel.style.width = '350px';
+                chatPanel.style.maxWidth = '350px';
+                chatPanel.style.minWidth = '350px';
+
+                // Update the toggle button icon
+                const chatToggleButton = document.getElementById('chat-toggle-btn');
+                if (chatToggleButton) {
+                    chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
+                }
+
+                console.log('Assistant window opened on page load');
+
+                // Add a second timeout to ensure the panel is fully open
+                setTimeout(function() {
+                    // Double-check that the panel is still open
+                    if (chatPanel.classList.contains('collapsed')) {
+                        console.log('Panel was closed again, reopening...');
+                        chatPanel.classList.remove('collapsed');
+                        chatPanel.style.width = '350px';
+                        chatPanel.style.maxWidth = '350px';
+                        chatPanel.style.minWidth = '350px';
+                    }
+                }, 200);
+            } else {
+                // Make sure it's closed (it should be by default)
+                chatPanel.classList.add('collapsed');
+
+                // Force a reflow
+                void chatPanel.offsetWidth;
+
+                // Set the width explicitly
+                chatPanel.style.width = '0';
+                chatPanel.style.maxWidth = '0';
+                chatPanel.style.minWidth = '0';
+
+                // Update the toggle button icon
+                const chatToggleButton = document.getElementById('chat-toggle-btn');
+                if (chatToggleButton) {
+                    chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
+                }
+
+                console.log('Assistant window closed on page load');
+            }
+        }, 1000); // Increased timeout to 1000ms (1 second) to ensure everything is loaded
 
         // Set initial reasoning mode state
         if (reasoningModeCheckbox) {
