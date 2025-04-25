@@ -61,8 +61,19 @@ You have access to the following tools that you MUST use to accomplish the task:
 - write_file: Write content to a file in the project
 - list_files: List files and directories in a directory
 
-DO NOT just describe the code - actually create the files using the write_file tool.
-Provide complete implementations that can be directly integrated into the project.
+IMPORTANT: You MUST use the write_file tool to create files. DO NOT just describe the code.
+Example of using the write_file tool:
+```
+I'll create a Python file that prints "Hello, World!":
+
+[Tool Call: write_file]
+{
+  "file_path": "hello.py",
+  "content": "print('Hello, World!')"
+}
+```
+
+After using the tool, verify the result and proceed with the next steps.
 """,
 
     "code_execution": """You are an expert in executing and testing code.
@@ -77,7 +88,18 @@ You have access to the following tools that you MUST use to accomplish the task:
 - write_file: Write content to a file in the project
 - run_file: Run a file in the project's container
 
-DO NOT just describe how to run the code - actually run it using the run_file tool.
+IMPORTANT: You MUST use the run_file tool to execute the code. DO NOT just describe how to run it.
+Example of using the run_file tool:
+```
+I'll run the Python file:
+
+[Tool Call: run_file]
+{
+  "file_path": "hello.py"
+}
+```
+
+After running the file, analyze the output and fix any issues if needed.
 Be precise and focus on practical execution steps.
 """,
 
@@ -379,14 +401,29 @@ class SimpleReasoning:
                 "Content-Type": "application/json"
             }
 
+            # Determine if we should force tool use based on step type
+            force_tool = False
+            if step_type in ["code_generation", "code_execution"]:
+                force_tool = True
+
+            # Set up the payload
             payload = {
-                "model": "gpt-4",
+                "model": "gpt-4o",  # Use the o4 model for better tool use
                 "messages": messages,
                 "tools": self.tools,
-                "tool_choice": "auto",  # Let the model decide when to use tools
                 "temperature": 0.2,
                 "max_tokens": 4000
             }
+
+            # Force tool use for certain step types
+            if force_tool and len(self.tools) > 0:
+                # Force the model to use tools
+                payload["tool_choice"] = {
+                    "type": "function"
+                }
+            else:
+                # Let the model decide when to use tools
+                payload["tool_choice"] = "auto"
 
             logger.info(f"Sending request to OpenAI with {len(self.tools)} tools")
 
@@ -495,27 +532,124 @@ class SimpleReasoning:
                     except Exception as e:
                         logger.exception(f"Error adding tool call to follow-up messages: {str(e)}")
 
-                # Make a follow-up request to process the tool results
-                follow_up_payload = {
-                    "model": "gpt-4",
-                    "messages": follow_up_messages,
-                    "temperature": 0.2,
-                    "max_tokens": 4000
-                }
+                # Process follow-up requests recursively to handle multiple tool calls
+                max_follow_up_rounds = 5  # Limit the number of follow-up rounds to prevent infinite loops
+                current_round = 0
 
-                follow_up_response = requests.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers=headers,
-                    json=follow_up_payload
-                )
+                while current_round < max_follow_up_rounds:
+                    current_round += 1
+                    logger.info(f"Starting follow-up round {current_round}")
 
-                if follow_up_response.status_code == 200:
-                    follow_up_data = follow_up_response.json()
-                    follow_up_message = follow_up_data['choices'][0]['message']
-                    follow_up_content = follow_up_message.get('content', '')
+                    # Make a follow-up request to process the tool results
+                    follow_up_payload = {
+                        "model": "gpt-4o",  # Use the o4 model for better tool use
+                        "messages": follow_up_messages,
+                        "tools": self.tools,  # Include tools in follow-up request
+                        "temperature": 0.2,
+                        "max_tokens": 4000
+                    }
 
-                    # Add the follow-up content to the original content
-                    content += f"\n\n# Follow-up Analysis:\n{follow_up_content}"
+                    # Force tool use for certain step types and early rounds
+                    if (force_tool and current_round <= 2) and len(self.tools) > 0:
+                        # Force the model to use tools in early rounds
+                        follow_up_payload["tool_choice"] = {
+                            "type": "function"
+                        }
+                    else:
+                        # Let the model decide when to use tools
+                        follow_up_payload["tool_choice"] = "auto"
+
+                    follow_up_response = requests.post(
+                        "https://api.openai.com/v1/chat/completions",
+                        headers=headers,
+                        json=follow_up_payload
+                    )
+
+                    if follow_up_response.status_code == 200:
+                        follow_up_data = follow_up_response.json()
+                        follow_up_message = follow_up_data['choices'][0]['message']
+                        follow_up_content = follow_up_message.get('content', '') or ''
+                        follow_up_tool_calls = follow_up_message.get('tool_calls', [])
+
+                        # Add the follow-up content to the original content
+                        if follow_up_content:
+                            content += f"\n\n# Follow-up Analysis (Round {current_round}):\n{follow_up_content}"
+
+                        # If there are no more tool calls, we're done
+                        if not follow_up_tool_calls:
+                            logger.info(f"No more tool calls in round {current_round}, finishing")
+                            break
+
+                        # Process the new tool calls
+                        logger.info(f"Processing {len(follow_up_tool_calls)} new tool calls in round {current_round}")
+
+                        # Add the assistant message with tool calls
+                        follow_up_messages.append({
+                            "role": "assistant",
+                            "content": follow_up_content,
+                            "tool_calls": follow_up_tool_calls
+                        })
+
+                        # Process each tool call
+                        for tool_call in follow_up_tool_calls:
+                            function = tool_call.get('function', {})
+                            tool_name = function.get('name')
+                            arguments_str = function.get('arguments')
+                            tool_call_id = tool_call.get('id', 'unknown')
+
+                            try:
+                                arguments = json.loads(arguments_str)
+                            except json.JSONDecodeError:
+                                arguments = {}
+
+                            logger.info(f"Executing follow-up tool call: {tool_name} with arguments: {arguments}")
+
+                            # Execute the tool
+                            result = self._execute_tool(tool_name, arguments)
+
+                            # Store the result
+                            tool_results.append({
+                                'name': tool_name,
+                                'arguments': arguments,
+                                'result': result
+                            })
+
+                            # Add tool result to the content
+                            tool_result_text = f"\n\n# Tool Result (Round {current_round}): {result.get('status', 'unknown').upper()}\n"
+                            tool_result_text += f"# Tool: {tool_name}\n\n"
+                            tool_result_text += f"{result.get('message', 'No message provided')}\n"
+
+                            # Add file path if available
+                            if 'file_path' in result:
+                                tool_result_text += f"\nFile: {result['file_path']}"
+
+                            # Add stdout if available
+                            if 'stdout' in result:
+                                tool_result_text += f"\n\nOutput:\n{result['stdout']}"
+
+                            # Add stderr if available
+                            if 'stderr' in result and result['stderr']:
+                                tool_result_text += f"\n\nErrors:\n{result['stderr']}"
+
+                            content += tool_result_text
+
+                            # Add the tool result to the follow-up messages
+                            follow_up_messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call_id,
+                                "content": json.dumps(result)
+                            })
+                    else:
+                        # If the follow-up request failed, log the error and break
+                        error_message = follow_up_response.json().get('error', {}).get('message', 'Unknown error')
+                        logger.error(f"Follow-up request failed: {error_message}")
+                        content += f"\n\nError in follow-up request: {error_message}"
+                        break
+
+                # Add a final summary if we reached the maximum number of rounds
+                if current_round >= max_follow_up_rounds:
+                    logger.warning(f"Reached maximum number of follow-up rounds ({max_follow_up_rounds})")
+                    content += f"\n\nNote: Reached maximum number of follow-up rounds ({max_follow_up_rounds}). Some actions may not have been completed."
 
             # Update the step with the response and tool calls
             step.response = content
@@ -588,6 +722,17 @@ For each file you need to create:
 2. Use the write_file tool with the file_path and content parameters
 3. Verify the file was created successfully by checking the tool result
 
+Example of using the write_file tool:
+```
+I'll create a Python file that implements the task:
+
+[Tool Call: write_file]
+{{
+  "file_path": "task_implementation.py",
+  "content": "# Your code here\\nprint('Task implemented successfully')"
+}}
+```
+
 Remember to use proper error handling, comments, and follow best practices for the language you're using.
 """
             code_gen_step = self.execute_step(session, "code_generation", code_gen_prompt)
@@ -606,6 +751,16 @@ For each file you need to run:
 1. Determine the file path to run
 2. Use the run_file tool with the file_path parameter
 3. Analyze the output to verify it works correctly
+
+Example of using the run_file tool:
+```
+I'll run the Python file:
+
+[Tool Call: run_file]
+{{
+  "file_path": "task_implementation.py"
+}}
+```
 
 If there are any errors or issues:
 1. Fix the code using the write_file tool
