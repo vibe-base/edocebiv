@@ -695,40 +695,52 @@ class SimpleReasoning:
                 "Content-Type": "application/json"
             }
 
-            # Determine if we should use tools based on step type
-            use_tools = True
-
-            # For planning and conclusion steps, don't use tools at all
+            # For planning and conclusion steps, use a completely different approach
+            # with no tools at all to prevent the model from trying to use tools
             if step_type in ["planning", "conclusion"]:
+                # Set up a payload with no tools
+                payload = {
+                    "model": "gpt-4o",
+                    "messages": messages,
+                    "temperature": 0.2,
+                    "max_tokens": 4000
+                }
+
+                # Explicitly set tool_choice to "none" to ensure no tools are used
+                # This is a special value that tells the API not to use tools
+                payload["tool_choice"] = "none"
+
+                # Do not include tools in the payload at all
                 use_tools = False
+                force_tool = False
+            else:
+                # For all other steps, use tools
+                use_tools = True
 
-            # For code generation and execution steps, force tool use
-            force_tool = False
-            if step_type in ["code_generation", "code_execution"]:
-                force_tool = True
+                # For code generation and execution steps, force tool use
+                force_tool = step_type in ["code_generation", "code_execution"]
 
-            # Set up the payload
-            payload = {
-                "model": "gpt-4o",  # Use the o4 model for better tool use
-                "messages": messages,
-                "temperature": 0.2,
-                "max_tokens": 4000
-            }
+                # Set up the payload with tools
+                payload = {
+                    "model": "gpt-4o",
+                    "messages": messages,
+                    "tools": self.tools,
+                    "temperature": 0.2,
+                    "max_tokens": 4000
+                }
 
-            # Only include tools if we're using them
-            if use_tools:
-                payload["tools"] = self.tools
-
-                # Force tool use for certain step types
+                # Set tool_choice based on step type
                 if force_tool:
                     # Force the model to use tools
-                    # For the OpenAI API, we just need to use "auto" to let the model choose which tool to use
                     payload["tool_choice"] = "auto"
                 else:
-                    # Let the model decide whether to use tools at all
+                    # Let the model decide whether to use tools
                     payload["tool_choice"] = "auto"
 
-            logger.info(f"Sending request to OpenAI with {len(self.tools)} tools")
+            if step_type in ["planning", "conclusion"]:
+                logger.info(f"Sending request to OpenAI with no tools (step type: {step_type})")
+            else:
+                logger.info(f"Sending request to OpenAI with {len(self.tools)} tools")
 
             response = requests.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -844,25 +856,32 @@ class SimpleReasoning:
                     logger.info(f"Starting follow-up round {current_round}")
 
                     # Make a follow-up request to process the tool results
-                    follow_up_payload = {
-                        "model": "gpt-4o",  # Use the o4 model for better tool use
-                        "messages": follow_up_messages,
-                        "tools": self.tools,  # Include tools in follow-up request
-                        "temperature": 0.2,
-                        "max_tokens": 4000
-                    }
+                    # For planning and conclusion steps, use a completely different approach
+                    if step_type in ["planning", "conclusion"]:
+                        # Set up a payload with no tools
+                        follow_up_payload = {
+                            "model": "gpt-4o",
+                            "messages": follow_up_messages,
+                            "temperature": 0.2,
+                            "max_tokens": 4000,
+                            "tool_choice": "none"  # Explicitly disable tools
+                        }
+                    else:
+                        # For all other steps, include tools
+                        follow_up_payload = {
+                            "model": "gpt-4o",
+                            "messages": follow_up_messages,
+                            "tools": self.tools,
+                            "temperature": 0.2,
+                            "max_tokens": 4000
+                        }
 
-                    # Only include tools if we're using them for this step type
-                    if use_tools:
-                        follow_up_payload["tools"] = self.tools
-
-                        # Force tool use for certain step types and early rounds
-                        if (force_tool and current_round <= 2):
+                        # Set tool_choice based on step type and round
+                        if force_tool and current_round <= 2:
                             # Force the model to use tools in early rounds
-                            # For the OpenAI API, we just need to use "auto" to let the model choose which tool to use
                             follow_up_payload["tool_choice"] = "auto"
                         else:
-                            # Let the model decide whether to use tools at all
+                            # Let the model decide whether to use tools
                             follow_up_payload["tool_choice"] = "auto"
 
                     follow_up_response = requests.post(

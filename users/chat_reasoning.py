@@ -277,30 +277,17 @@ def _handle_reasoning_request(
     # Format the response for the chat
     response_content = f"I've analyzed your request and broken it down into steps:\n\n"
 
-    # Get all completed steps
-    completed_steps = [step for step in steps if step.is_complete]
+    # Get all steps in order
+    ordered_steps = list(steps.order_by('step_number'))
 
-    # If we have a planning step, always include it
-    planning_step = next((step for step in steps if step.step_type == 'planning'), None)
-    if planning_step:
-        # Add planning step header
-        response_content += f"**Step 1: Planning**\n"
-
-        # Add planning step response (truncated if too long)
-        step_response = planning_step.response
-        if len(step_response) > 1000:
-            step_response = step_response[:1000] + "...\n[Response truncated for readability]"
-
-        response_content += f"{step_response}\n\n"
-
-    # Add all other completed steps
-    for step in completed_steps:
-        # Skip the planning step since we already added it
-        if step.step_type == 'planning':
+    # Add each step to the response
+    for i, step in enumerate(ordered_steps):
+        if not step.is_complete:
             continue
 
-        # Add step header
-        response_content += f"**Step {step.step_number}: {step.step_type.replace('_', ' ').title()}**\n"
+        # Add step header with step number
+        step_type_display = step.step_type.replace('_', ' ').title()
+        response_content += f"**Step {i+1}: {step_type_display}**\n"
 
         # Add step response (truncated if too long)
         step_response = step.response
@@ -309,18 +296,9 @@ def _handle_reasoning_request(
 
         response_content += f"{step_response}\n\n"
 
-    # If there's a conclusion step, make sure it's included at the end
-    conclusion_step = next((step for step in steps if step.step_type == 'conclusion' and step.is_complete), None)
-    if conclusion_step and conclusion_step not in completed_steps:
-        # Add conclusion step header
-        response_content += f"**Conclusion**\n"
-
-        # Add conclusion step response (truncated if too long)
-        step_response = conclusion_step.response
-        if len(step_response) > 1000:
-            step_response = step_response[:1000] + "...\n[Response truncated for readability]"
-
-        response_content += f"{step_response}\n\n"
+    # If there are no completed steps, add a message
+    if not any(step.is_complete for step in ordered_steps):
+        response_content += "I'm still working on analyzing your request. Please check back in a moment.\n\n"
 
     # Save the assistant's response to the database
     ChatMessage.objects.create(
