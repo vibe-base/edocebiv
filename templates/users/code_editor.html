@@ -2265,7 +2265,19 @@
                 addMessage("🧠 Using AI reasoning mode for this complex task. This may take a bit longer...", "system");
             }
 
-            // Send request to backend
+            // Set up a timeout for the request
+            const timeoutDuration = useReasoning ? 120000 : 60000; // 2 minutes for reasoning, 1 minute for regular chat
+
+            // Create an AbortController to handle timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+
+            // Add a system message about the timeout
+            if (useReasoning) {
+                addMessage("⏱️ If the reasoning process takes longer than 2 minutes, it will automatically fall back to regular chat mode.", "system");
+            }
+
+            // Send request to backend with timeout
             fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -2277,7 +2289,8 @@
                     current_file: currentFile,
                     current_file_content: currentFileContent,
                     use_reasoning: useReasoning
-                })
+                }),
+                signal: controller.signal
             })
             .then(response => response.json())
             .then(data => {
@@ -2356,12 +2369,30 @@
                 // Remove loading indicator
                 removeLoadingIndicator();
 
+                // Clear the timeout
+                clearTimeout(timeoutId);
+
                 // Enable input
                 chatInput.disabled = false;
                 chatSendBtn.disabled = false;
 
-                // Add error message
-                addMessage(`Error: ${error.message}`, 'assistant');
+                // Check if this was an abort error (timeout)
+                if (error.name === 'AbortError') {
+                    // Show timeout message
+                    addMessage(`The request timed out. ${useReasoning ? 'Reasoning mode took too long - try again with regular chat mode.' : 'Please try again later.'}`, 'system');
+
+                    // If we were using reasoning mode, suggest trying again without it
+                    if (useReasoning) {
+                        // Turn off reasoning mode
+                        document.getElementById('reasoning-mode-toggle').checked = false;
+
+                        // Add a suggestion to try again
+                        addMessage("I've turned off reasoning mode. Please try sending your message again.", 'system');
+                    }
+                } else {
+                    // Show regular error message
+                    addMessage(`Error: ${error.message}`, 'system');
+                }
             });
         }
 
