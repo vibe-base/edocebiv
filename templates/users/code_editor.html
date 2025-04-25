@@ -2550,9 +2550,15 @@
         // Set initial state based on user preferences
         if (!isAssistantWindowOpen && chatPanel) {
             chatPanel.classList.add('collapsed');
-            const chatToggleButton = document.querySelector('.chat-toggle');
+            const chatToggleButton = document.getElementById('chat-toggle-btn');
             if (chatToggleButton) {
-                chatToggleButton.innerHTML = '<i class="bi bi-chat-right-text"></i>';
+                chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
+            }
+        } else if (isAssistantWindowOpen && chatPanel) {
+            chatPanel.classList.remove('collapsed');
+            const chatToggleButton = document.getElementById('chat-toggle-btn');
+            if (chatToggleButton) {
+                chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
             }
         }
 
@@ -2597,22 +2603,45 @@
         }
 
         // Listen for chat panel toggle
-        document.querySelector('.chat-toggle')?.addEventListener('click', function() {
-            if (chatPanel) {
-                chatPanel.classList.toggle('collapsed');
-                isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
-                this.innerHTML = isAssistantWindowOpen ?
-                    '<i class="bi bi-chevron-right"></i>' :
-                    '<i class="bi bi-chat-right-text"></i>';
-                saveUserPreferences();
-            }
-        });
+        const chatToggleBtn = document.getElementById('chat-toggle-btn');
+        if (chatToggleBtn) {
+            chatToggleBtn.addEventListener('click', function() {
+                if (chatPanel) {
+                    chatPanel.classList.toggle('collapsed');
+                    isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
+                    this.innerHTML = isAssistantWindowOpen ?
+                        '<i class="bi bi-chevron-right"></i>' :
+                        '<i class="bi bi-chat-dots"></i>';
+                    saveUserPreferences();
+                    console.log('Chat panel toggled:', isAssistantWindowOpen);
+                }
+            });
+        }
+
+        // Listen for chat close button
+        const chatCloseBtn = document.getElementById('chat-close-btn');
+        if (chatCloseBtn) {
+            chatCloseBtn.addEventListener('click', function() {
+                if (chatPanel) {
+                    chatPanel.classList.add('collapsed');
+                    isAssistantWindowOpen = false;
+                    const chatToggleButton = document.getElementById('chat-toggle-btn');
+                    if (chatToggleButton) {
+                        chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
+                    }
+                    saveUserPreferences();
+                    console.log('Chat panel closed');
+                }
+            });
+        }
 
         // Listen for reasoning mode toggle
-        reasoningModeCheckbox?.addEventListener('change', function() {
-            isReasoningModeOn = this.checked;
-            saveUserPreferences();
-        });
+        if (reasoningModeCheckbox) {
+            reasoningModeCheckbox.addEventListener('change', function() {
+                isReasoningModeOn = this.checked;
+                saveUserPreferences();
+            });
+        }
     });
 </script>
 {% endblock %}
