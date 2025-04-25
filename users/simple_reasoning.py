@@ -24,7 +24,14 @@ For each step, specify:
 2. What files need to be examined or modified
 3. What tools might be needed (file operations, code execution, etc.)
 
-Be thorough but concise. Focus on creating a practical, step-by-step plan that another AI can follow.
+You have access to the following tools that you MUST use to accomplish the task:
+- read_file: Read the content of a file in the project
+- write_file: Write content to a file in the project
+- list_files: List files and directories in a directory
+- run_file: Run a file in the project's container
+- delete_file: Delete a file or directory in the project
+
+Be thorough but concise. Focus on creating a practical, step-by-step plan that you will execute.
 """,
 
     "analysis": """You are an expert code analyst specialized in understanding codebases.
@@ -33,6 +40,10 @@ Examine the provided code carefully and provide insights on:
 2. Key components and their relationships
 3. Potential issues or areas for improvement
 4. How the code relates to the user's request
+
+You have access to the following tools that you MUST use to accomplish the task:
+- read_file: Read the content of a file in the project
+- list_files: List files and directories in a directory
 
 Be thorough and precise in your analysis. This will be used to guide further actions.
 """,
@@ -45,36 +56,60 @@ Your code should be:
 3. Following best practices for the language/framework
 4. Compatible with the existing codebase
 
+You have access to the following tools that you MUST use to accomplish the task:
+- read_file: Read the content of a file in the project
+- write_file: Write content to a file in the project
+- list_files: List files and directories in a directory
+
+DO NOT just describe the code - actually create the files using the write_file tool.
 Provide complete implementations that can be directly integrated into the project.
 """,
 
     "code_execution": """You are an expert in executing and testing code.
 Your job is to:
 1. Determine how to run the provided code
-2. Predict potential outcomes or issues
-3. Suggest appropriate test cases
-4. Interpret execution results
+2. Execute the code using the run_file tool
+3. Interpret execution results
+4. Fix any issues that arise
 
+You have access to the following tools that you MUST use to accomplish the task:
+- read_file: Read the content of a file in the project
+- write_file: Write content to a file in the project
+- run_file: Run a file in the project's container
+
+DO NOT just describe how to run the code - actually run it using the run_file tool.
 Be precise and focus on practical execution steps.
 """,
 
     "testing": """You are an expert in software testing.
 Your job is to:
 1. Design appropriate test cases for the code
-2. Identify edge cases and potential issues
-3. Verify that the code meets requirements
-4. Suggest improvements based on test results
+2. Implement the test cases using the write_file tool
+3. Run the tests using the run_file tool
+4. Verify that the code meets requirements
 
+You have access to the following tools that you MUST use to accomplish the task:
+- read_file: Read the content of a file in the project
+- write_file: Write content to a file in the project
+- run_file: Run a file in the project's container
+
+DO NOT just describe the tests - actually create and run them using the tools.
 Be thorough and methodical in your approach to testing.
 """,
 
     "refinement": """You are an expert in code refinement and optimization.
 Based on the previous steps and feedback, your job is to:
 1. Identify areas for improvement in the code
-2. Suggest specific optimizations or refactorings
+2. Implement specific optimizations or refactorings using the write_file tool
 3. Address any issues or bugs discovered
 4. Enhance the code's readability, performance, or maintainability
 
+You have access to the following tools that you MUST use to accomplish the task:
+- read_file: Read the content of a file in the project
+- write_file: Write content to a file in the project
+- run_file: Run a file in the project's container
+
+DO NOT just suggest improvements - actually implement them using the write_file tool.
 Provide specific, actionable improvements.
 """,
 
@@ -516,7 +551,24 @@ class SimpleReasoning:
 
         try:
             # Step 1: Planning
-            planning_prompt = f"Task: {task_description}\n\nCreate a detailed plan to accomplish this task."
+            planning_prompt = f"""Task: {task_description}
+
+Create a detailed plan to accomplish this task. You MUST use the available tools to complete the task.
+DO NOT just describe what needs to be done - you will be executing this plan yourself.
+
+For each step, specify:
+1. The goal of the step
+2. What files need to be examined or modified
+3. What tools you will use (read_file, write_file, run_file, etc.)
+4. The exact arguments you will pass to these tools
+
+Remember, you have these tools available:
+- read_file: Read the content of a file in the project
+- write_file: Write content to a file in the project
+- list_files: List files and directories in a directory
+- run_file: Run a file in the project's container
+- delete_file: Delete a file or directory in the project
+"""
             if context and "current_file" in context:
                 planning_prompt += f"\n\nThe user is currently working on: {context['current_file']}"
 
@@ -524,38 +576,60 @@ class SimpleReasoning:
             plan = planning_step.response
 
             # Step 2: Code Generation
-            code_gen_prompt = f"""
-            Task: {task_description}
+            code_gen_prompt = f"""Task: {task_description}
 
-            Plan: {plan}
+Plan: {plan}
 
-            Generate the necessary code to implement this task. Use the available tools to read, write, or execute files as needed.
-            """
+Now, implement the code needed for this task. You MUST use the write_file tool to create any necessary files.
+DO NOT just describe the code - actually create the files using the write_file tool.
+
+For each file you need to create:
+1. Determine the appropriate file path and content
+2. Use the write_file tool with the file_path and content parameters
+3. Verify the file was created successfully by checking the tool result
+
+Remember to use proper error handling, comments, and follow best practices for the language you're using.
+"""
             code_gen_step = self.execute_step(session, "code_generation", code_gen_prompt)
 
-            # Step 3: Testing/Execution (if applicable)
-            if "run" in task_description.lower() or "test" in task_description.lower():
-                testing_prompt = f"""
-                Task: {task_description}
+            # Step 3: Execution (always run this step)
+            execution_prompt = f"""Task: {task_description}
 
-                Plan: {plan}
+Plan: {plan}
 
-                Code implementation: {code_gen_step.response}
+Code implementation: {code_gen_step.response}
 
-                Test the implementation and verify it works correctly. Use the run_file tool if needed.
-                """
-                testing_step = self.execute_step(session, "testing", testing_prompt)
+Now, execute the code you've created. You MUST use the run_file tool to run the appropriate files.
+DO NOT just describe how to run the code - actually run it using the run_file tool.
+
+For each file you need to run:
+1. Determine the file path to run
+2. Use the run_file tool with the file_path parameter
+3. Analyze the output to verify it works correctly
+
+If there are any errors or issues:
+1. Fix the code using the write_file tool
+2. Run it again to verify your fixes worked
+"""
+            execution_step = self.execute_step(session, "code_execution", execution_prompt)
 
             # Step 4: Conclusion
-            conclusion_prompt = f"""
-            Task: {task_description}
+            conclusion_prompt = f"""Task: {task_description}
 
-            Plan: {plan}
+Plan: {plan}
 
-            Implementation: {code_gen_step.response}
+Implementation: {code_gen_step.response}
 
-            Provide a summary of what was accomplished and any next steps or recommendations.
-            """
+Execution results: {execution_step.response}
+
+Provide a summary of what was accomplished:
+1. What files were created or modified
+2. What the code does
+3. The results of running the code
+4. Any issues encountered and how they were resolved
+
+Be concise but comprehensive in your summary.
+"""
             conclusion_step = self.execute_step(session, "conclusion", conclusion_prompt)
 
             # Mark session as complete
