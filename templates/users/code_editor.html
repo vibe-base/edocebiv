@@ -192,102 +192,110 @@
     /* Reasoning progress styles */
     .reasoning-progress-container {
         margin: 10px 0;
-        padding: 10px;
-        background-color: rgba(0, 123, 255, 0.05);
-        border-radius: 5px;
-        border: 1px solid rgba(0, 123, 255, 0.2);
+        padding: 15px;
+        background-color: rgba(0, 123, 255, 0.1);
+        border-radius: 8px;
+        border: 2px solid rgba(0, 123, 255, 0.3);
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
 
     .reasoning-progress-container h3 {
-        margin: 0 0 10px 0;
-        font-size: 16px;
+        margin: 0 0 15px 0;
+        font-size: 18px;
         color: #007bff;
         text-align: center;
+        font-weight: bold;
     }
 
     .reasoning-steps-container {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 12px;
     }
 
     .reasoning-step {
-        padding: 8px;
-        border-radius: 4px;
-        background-color: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 12px;
+        border-radius: 6px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .reasoning-step-title {
         font-weight: bold;
-        margin-bottom: 5px;
+        font-size: 16px;
+        margin-bottom: 8px;
+        color: #e0e0e0;
     }
 
     .reasoning-step-status {
-        font-size: 12px;
-        padding: 2px 6px;
-        border-radius: 3px;
+        font-size: 13px;
+        padding: 3px 8px;
+        border-radius: 4px;
         display: inline-block;
-        margin-bottom: 5px;
+        margin-bottom: 8px;
+        font-weight: bold;
     }
 
     .reasoning-step-planning .reasoning-step-status {
-        background-color: rgba(0, 123, 255, 0.2);
-        color: #007bff;
+        background-color: rgba(0, 123, 255, 0.3);
+        color: #4da3ff;
     }
 
     .reasoning-step-analysis .reasoning-step-status {
-        background-color: rgba(108, 117, 125, 0.2);
-        color: #6c757d;
+        background-color: rgba(108, 117, 125, 0.3);
+        color: #a8aeb3;
     }
 
     .reasoning-step-code_generation .reasoning-step-status {
-        background-color: rgba(40, 167, 69, 0.2);
-        color: #28a745;
+        background-color: rgba(40, 167, 69, 0.3);
+        color: #5bd778;
     }
 
     .reasoning-step-code_execution .reasoning-step-status {
-        background-color: rgba(255, 193, 7, 0.2);
-        color: #ffc107;
+        background-color: rgba(255, 193, 7, 0.3);
+        color: #ffd54f;
     }
 
     .reasoning-step-testing .reasoning-step-status {
-        background-color: rgba(23, 162, 184, 0.2);
-        color: #17a2b8;
+        background-color: rgba(23, 162, 184, 0.3);
+        color: #5ccfe1;
     }
 
     .reasoning-step-refinement .reasoning-step-status {
-        background-color: rgba(111, 66, 193, 0.2);
-        color: #6f42c1;
+        background-color: rgba(111, 66, 193, 0.3);
+        color: #a87fdb;
     }
 
     .reasoning-step-conclusion .reasoning-step-status {
-        background-color: rgba(40, 167, 69, 0.2);
-        color: #28a745;
+        background-color: rgba(40, 167, 69, 0.3);
+        color: #5bd778;
     }
 
     .reasoning-step-started {
-        border-left: 3px solid #ffc107;
+        border-left: 4px solid #ffc107;
     }
 
     .reasoning-step-completed {
-        border-left: 3px solid #28a745;
+        border-left: 4px solid #28a745;
     }
 
     .reasoning-step-failed {
-        border-left: 3px solid #dc3545;
+        border-left: 4px solid #dc3545;
     }
 
     .reasoning-step-content {
-        margin-top: 5px;
-        padding: 5px;
-        background-color: rgba(0, 0, 0, 0.2);
-        border-radius: 3px;
+        margin-top: 8px;
+        padding: 10px;
+        background-color: rgba(0, 0, 0, 0.3);
+        border-radius: 5px;
         font-family: monospace;
-        font-size: 12px;
-        max-height: 200px;
+        font-size: 14px;
+        max-height: 300px;
         overflow-y: auto;
         white-space: pre-wrap;
+        color: #e0e0e0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .reasoning-json-response {
@@ -295,11 +303,12 @@
         padding: 0;
         white-space: pre-wrap;
         font-family: monospace;
-        font-size: 12px;
+        font-size: 14px;
+        color: #e0e0e0;
     }
 
     .reasoning-error {
-        color: #dc3545;
+        color: #ff6b6b;
         font-weight: bold;
     }
 
@@ -1642,6 +1651,7 @@
             reasoningProgressContainer = document.createElement('div');
             reasoningProgressContainer.id = 'reasoning-progress-container';
             reasoningProgressContainer.className = 'reasoning-progress-container';
+            reasoningProgressContainer.setAttribute('data-session-id', sessionId);
 
             // Add a title
             const title = document.createElement('h3');
@@ -1654,18 +1664,73 @@
             stepsContainer.className = 'reasoning-steps-container';
             reasoningProgressContainer.appendChild(stepsContainer);
 
-            // Add it to the chat panel, right after the loading indicator or as the first element
+            // Add it to the chat panel, right after the loading indicator
             const loadingIndicator = document.getElementById('chat-loading-indicator');
             if (loadingIndicator) {
-                loadingIndicator.parentNode.insertBefore(reasoningProgressContainer, loadingIndicator.nextSibling);
+                // Insert after the loading indicator
+                if (loadingIndicator.nextSibling) {
+                    loadingIndicator.parentNode.insertBefore(reasoningProgressContainer, loadingIndicator.nextSibling);
+                } else {
+                    loadingIndicator.parentNode.appendChild(reasoningProgressContainer);
+                }
             } else {
+                // If no loading indicator, add to the end of the chat messages
                 const chatMessages = document.getElementById('chat-messages');
                 chatMessages.appendChild(reasoningProgressContainer);
+            }
+
+            // Make sure it's visible
+            reasoningProgressContainer.style.display = 'block';
+        } else {
+            // Check if this is for a different session
+            const currentSessionId = reasoningProgressContainer.getAttribute('data-session-id');
+            if (currentSessionId !== sessionId.toString()) {
+                // Remove the old container and create a new one
+                reasoningProgressContainer.remove();
+
+                // Create a new container
+                reasoningProgressContainer = document.createElement('div');
+                reasoningProgressContainer.id = 'reasoning-progress-container';
+                reasoningProgressContainer.className = 'reasoning-progress-container';
+                reasoningProgressContainer.setAttribute('data-session-id', sessionId);
+
+                // Add a title
+                const title = document.createElement('h3');
+                title.textContent = 'AI Reasoning Progress';
+                reasoningProgressContainer.appendChild(title);
+
+                // Create a steps container
+                const stepsContainer = document.createElement('div');
+                stepsContainer.id = 'reasoning-steps-container';
+                stepsContainer.className = 'reasoning-steps-container';
+                reasoningProgressContainer.appendChild(stepsContainer);
+
+                // Add it to the chat panel, right after the loading indicator
+                const loadingIndicator = document.getElementById('chat-loading-indicator');
+                if (loadingIndicator) {
+                    // Insert after the loading indicator
+                    if (loadingIndicator.nextSibling) {
+                        loadingIndicator.parentNode.insertBefore(reasoningProgressContainer, loadingIndicator.nextSibling);
+                    } else {
+                        loadingIndicator.parentNode.appendChild(reasoningProgressContainer);
+                    }
+                } else {
+                    // If no loading indicator, add to the end of the chat messages
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.appendChild(reasoningProgressContainer);
+                }
+
+                // Make sure it's visible
+                reasoningProgressContainer.style.display = 'block';
             }
         }
 
         // Get the steps container
         const stepsContainer = document.getElementById('reasoning-steps-container');
+        if (!stepsContainer) {
+            console.error('Steps container not found');
+            return;
+        }
 
         // Check if we already have a step element for this step
         let stepElement = document.getElementById(`reasoning-step-${step.id}`);
@@ -1681,7 +1746,8 @@
             stepTitle.className = 'reasoning-step-title';
 
             // Format the step type for display
-            let stepTypeDisplay = step.step_type.charAt(0).toUpperCase() + step.step_type.slice(1);
+            let stepTypeDisplay = step.step_type.replace('_', ' ');
+            stepTypeDisplay = stepTypeDisplay.charAt(0).toUpperCase() + stepTypeDisplay.slice(1);
 
             stepTitle.textContent = `Step ${step.step_number}: ${stepTypeDisplay}`;
             stepElement.appendChild(stepTitle);
@@ -1706,30 +1772,38 @@
 
         // Update the status indicator
         const statusIndicator = stepElement.querySelector('.reasoning-step-status');
-        statusIndicator.textContent = step.status.charAt(0).toUpperCase() + step.status.slice(1);
+        if (statusIndicator) {
+            statusIndicator.textContent = step.status.charAt(0).toUpperCase() + step.status.slice(1);
+        }
 
         // If completed, add the response
         if (step.status === 'completed' && step.response) {
             const contentContainer = stepElement.querySelector('.reasoning-step-content');
+            if (contentContainer) {
+                // Try to parse the response as JSON
+                try {
+                    const jsonResponse = JSON.parse(step.response);
 
-            // Try to parse the response as JSON
-            try {
-                const jsonResponse = JSON.parse(step.response);
-
-                // If it's a JSON response, format it nicely
-                const formattedJson = JSON.stringify(jsonResponse, null, 2);
-                contentContainer.innerHTML = `<pre class="reasoning-json-response">${formattedJson}</pre>`;
-            } catch (e) {
-                // If it's not JSON, just set the text content
-                contentContainer.textContent = step.response;
+                    // If it's a JSON response, format it nicely
+                    const formattedJson = JSON.stringify(jsonResponse, null, 2);
+                    contentContainer.innerHTML = `<pre class="reasoning-json-response">${formattedJson}</pre>`;
+                } catch (e) {
+                    // If it's not JSON, just set the text content
+                    contentContainer.innerHTML = step.response.replace(/\n/g, '<br>');
+                }
             }
         }
 
         // If failed, add the error
         if (step.status === 'failed' && step.error) {
             const contentContainer = stepElement.querySelector('.reasoning-step-content');
-            contentContainer.innerHTML = `<div class="reasoning-error">${step.error}</div>`;
+            if (contentContainer) {
+                contentContainer.innerHTML = `<div class="reasoning-error">${step.error}</div>`;
+            }
         }
+
+        // Make sure the reasoning progress container is visible
+        reasoningProgressContainer.style.display = 'block';
 
         // Scroll to the bottom of the chat panel
         const chatMessages = document.getElementById('chat-messages');
@@ -2695,6 +2769,19 @@
 
         // Function to add a loading indicator
         function addLoadingIndicator() {
+            // Remove any existing loading indicator
+            const existingIndicator = document.getElementById('chat-loading-indicator');
+            if (existingIndicator) {
+                existingIndicator.remove();
+            }
+
+            // Remove any existing reasoning progress container
+            const existingProgressContainer = document.getElementById('reasoning-progress-container');
+            if (existingProgressContainer) {
+                existingProgressContainer.remove();
+            }
+
+            // Create new loading indicator
             const loadingDiv = document.createElement('div');
             loadingDiv.className = 'chat-message assistant';
             loadingDiv.id = 'chat-loading-indicator';

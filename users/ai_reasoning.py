@@ -552,7 +552,7 @@ class AIReasoning:
         )
 
         try:
-            # Step 1: Planning
+            # Step 1: Planning (always executed)
             planning_prompt = f"Task: {task_description}\n\nCreate a detailed plan to accomplish this task."
             if context and "current_file" in context:
                 planning_prompt += f"\n\nThe user is currently working on: {context['current_file']}"
@@ -560,8 +560,36 @@ class AIReasoning:
             planning_step = self.execute_step(session, "planning", planning_prompt)
             plan = planning_step.response
 
+            # Check if the task is already completed in the planning step
+            # Look for indicators that the task was simple and already completed
+            task_completed_indicators = [
+                "task has been completed",
+                "task is now complete",
+                "all files have been deleted",
+                "file has been deleted",
+                "files have been deleted",
+                "successfully deleted",
+                "deletion complete",
+                "task completed"
+            ]
+
+            task_already_completed = any(indicator.lower() in plan.lower() for indicator in task_completed_indicators)
+
+            # Determine which steps to execute based on the task description and planning response
+            needs_analysis = (context and "current_file" in context and "current_file_content" in context and
+                             any(keyword in task_description.lower() for keyword in ["analyze", "examine", "understand", "review"]))
+
+            needs_code_generation = (not task_already_completed and
+                                    any(keyword in task_description.lower() for keyword in ["create", "implement", "write", "add", "generate"]))
+
+            needs_testing = (not task_already_completed and
+                            any(keyword in task_description.lower() for keyword in ["run", "execute", "test"]))
+
+            needs_refinement = (not task_already_completed and
+                               any(keyword in task_description.lower() for keyword in ["improve", "optimize", "refactor"]))
+
             # Step 2: Analysis (if needed)
-            if context and "current_file" in context and "current_file_content" in context:
+            if needs_analysis:
                 analysis_prompt = f"""
                 Task: {task_description}
 
@@ -579,54 +607,59 @@ class AIReasoning:
                 analysis_step = self.execute_step(session, "analysis", analysis_prompt)
                 analysis = analysis_step.response
             else:
-                # Skip analysis if no current file
-                analysis = "No specific file to analyze."
+                # Skip analysis if not needed
+                analysis = "No analysis needed for this task."
 
-            # Step 3: Code Generation
-            code_gen_prompt = f"""
-            Task: {task_description}
+            # Step 3: Code Generation (if needed)
+            if needs_code_generation:
+                code_gen_prompt = f"""
+                Task: {task_description}
 
-            Plan: {plan}
+                Plan: {plan}
 
-            Analysis: {analysis}
+                Analysis: {analysis}
 
-            Generate the necessary code to implement this task. Use the available tools to read, write, or execute files as needed.
-            """
-            code_gen_step = self.execute_step(session, "code_generation", code_gen_prompt)
+                Generate the necessary code to implement this task. Use the available tools to read, write, or execute files as needed.
+                """
+                code_gen_step = self.execute_step(session, "code_generation", code_gen_prompt)
+                code_implementation = code_gen_step.response
+            else:
+                # Skip code generation if not needed
+                code_implementation = "No code generation needed for this task."
 
-            # Step 4: Testing/Execution (if applicable)
-            if "run" in task_description.lower() or "test" in task_description.lower():
+            # Step 4: Testing/Execution (if needed)
+            if needs_testing:
                 testing_prompt = f"""
                 Task: {task_description}
 
                 Plan: {plan}
 
-                Code implementation: {code_gen_step.response}
+                Code implementation: {code_implementation}
 
                 Test the implementation and verify it works correctly. Use the run_file tool if needed.
                 """
                 testing_step = self.execute_step(session, "testing", testing_prompt)
 
             # Step 5: Refinement (if needed)
-            if "improve" in task_description.lower() or "optimize" in task_description.lower() or "refactor" in task_description.lower():
+            if needs_refinement:
                 refinement_prompt = f"""
                 Task: {task_description}
 
                 Plan: {plan}
 
-                Code implementation: {code_gen_step.response}
+                Code implementation: {code_implementation}
 
                 Refine and optimize the implementation. Make any necessary improvements.
                 """
                 refinement_step = self.execute_step(session, "refinement", refinement_prompt)
 
-            # Step 6: Conclusion
+            # Step 6: Conclusion (always executed)
             conclusion_prompt = f"""
             Task: {task_description}
 
             Plan: {plan}
 
-            Implementation: {code_gen_step.response}
+            {f"Implementation: {code_implementation}" if needs_code_generation else ""}
 
             Provide a summary of what was accomplished and any next steps or recommendations.
             """
