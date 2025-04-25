@@ -2548,56 +2548,72 @@
         let isReasoningModeOn = {{ user_profile.is_reasoning_mode_on|lower }};
 
         // Get the chat panel and reasoning mode checkbox
-        const chatPanel = document.querySelector('.chat-panel');
-        const reasoningModeCheckbox = document.querySelector('#reasoning-mode-checkbox');
+        const chatPanel = document.getElementById('chat-panel');
+        const reasoningModeCheckbox = document.getElementById('reasoning-mode-checkbox');
 
-        // Set initial state based on user preferences
-        if (chatPanel) {
-            console.log('Initial assistant window state:', isAssistantWindowOpen ? 'open' : 'closed');
+        console.log('Initial assistant window state:', isAssistantWindowOpen ? 'open' : 'closed');
 
-            // Force the panel to the correct state based on user preference
-            if (isAssistantWindowOpen) {
-                // Open the panel - explicitly remove the collapsed class
-                chatPanel.classList.remove('collapsed');
-                // Force a reflow
-                void chatPanel.offsetWidth;
-                // Set the width explicitly
-                chatPanel.style.width = '350px';
-                chatPanel.style.maxWidth = '350px';
+        // Function to open the chat panel
+        function openChatPanel() {
+            if (!chatPanel) return;
 
-                const chatToggleButton = document.getElementById('chat-toggle-btn');
-                if (chatToggleButton) {
-                    chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
-                }
-                console.log('Assistant window opened on load (user preference), width set to 350px');
-            } else {
-                // Close the panel - explicitly add the collapsed class
-                chatPanel.classList.add('collapsed');
-                // Force a reflow
-                void chatPanel.offsetWidth;
-                // Set the width explicitly
-                chatPanel.style.width = '0';
-                chatPanel.style.maxWidth = '0';
+            console.log('Opening chat panel');
+            chatPanel.classList.remove('collapsed');
+            chatPanel.style.width = '350px';
+            chatPanel.style.maxWidth = '350px';
 
-                const chatToggleButton = document.getElementById('chat-toggle-btn');
-                if (chatToggleButton) {
-                    chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
-                }
-                console.log('Assistant window closed on load (user preference), width set to 0');
+            const chatToggleButton = document.getElementById('chat-toggle-btn');
+            if (chatToggleButton) {
+                chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
             }
+
+            isAssistantWindowOpen = true;
+            saveUserPreferences();
+            console.log('Chat panel opened');
         }
 
+        // Function to close the chat panel
+        function closeChatPanel() {
+            if (!chatPanel) return;
+
+            console.log('Closing chat panel');
+            chatPanel.classList.add('collapsed');
+            chatPanel.style.width = '0';
+            chatPanel.style.maxWidth = '0';
+
+            const chatToggleButton = document.getElementById('chat-toggle-btn');
+            if (chatToggleButton) {
+                chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
+            }
+
+            isAssistantWindowOpen = false;
+            saveUserPreferences();
+            console.log('Chat panel closed');
+        }
+
+        // Set initial state based on user preferences
+        if (isAssistantWindowOpen) {
+            // Use setTimeout to ensure the DOM is fully loaded
+            setTimeout(openChatPanel, 100);
+        } else {
+            // Make sure it's closed (it should be by default)
+            setTimeout(closeChatPanel, 100);
+        }
+
+        // Set initial reasoning mode state
         if (reasoningModeCheckbox) {
             reasoningModeCheckbox.checked = isReasoningModeOn;
         }
 
         // Function to save user preferences via AJAX
         function saveUserPreferences() {
+            const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]').value;
+
             fetch('/users/save_preferences/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': getCsrfToken()
+                    'X-CSRFToken': csrfToken
                 },
                 body: `is_assistant_window_open=${isAssistantWindowOpen}&is_reasoning_mode_on=${isReasoningModeOn}`
             })
@@ -2610,91 +2626,26 @@
             });
         }
 
-        // Get CSRF token from cookies
-        function getCsrfToken() {
-            const name = 'csrftoken';
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
-        }
-
-        // Listen for chat panel toggle
+        // Listen for chat panel toggle button click
         const chatToggleBtn = document.getElementById('chat-toggle-btn');
         if (chatToggleBtn) {
             chatToggleBtn.addEventListener('click', function(e) {
-                e.preventDefault(); // Prevent default button behavior
+                e.preventDefault();
 
-                if (chatPanel) {
-                    // Check current state
-                    const isCurrentlyClosed = chatPanel.classList.contains('collapsed');
-                    console.log('Chat toggle clicked. Current state:', isCurrentlyClosed ? 'closed' : 'open');
-
-                    if (isCurrentlyClosed) {
-                        // Open the panel - force a reflow to ensure the transition works
-                        chatPanel.classList.remove('collapsed');
-                        // Force a reflow
-                        void chatPanel.offsetWidth;
-                        // Set the width explicitly
-                        chatPanel.style.width = '350px';
-                        chatPanel.style.maxWidth = '350px';
-                        this.innerHTML = '<i class="bi bi-chevron-right"></i>';
-                        isAssistantWindowOpen = true;
-                        console.log('Opening chat panel, width set to 350px');
-                    } else {
-                        // Close the panel
-                        chatPanel.classList.add('collapsed');
-                        // Force a reflow
-                        void chatPanel.offsetWidth;
-                        // Set the width explicitly
-                        chatPanel.style.width = '0';
-                        chatPanel.style.maxWidth = '0';
-                        this.innerHTML = '<i class="bi bi-chat-dots"></i>';
-                        isAssistantWindowOpen = false;
-                        console.log('Closing chat panel, width set to 0');
-                    }
-
-                    saveUserPreferences();
-                    console.log('Chat panel toggled to:', isAssistantWindowOpen ? 'open' : 'closed');
+                if (isAssistantWindowOpen) {
+                    closeChatPanel();
+                } else {
+                    openChatPanel();
                 }
             });
         }
 
-        // Listen for chat close button
+        // Listen for chat close button click
         const chatCloseBtn = document.getElementById('chat-close-btn');
         if (chatCloseBtn) {
             chatCloseBtn.addEventListener('click', function(e) {
-                e.preventDefault(); // Prevent default button behavior
-
-                if (chatPanel) {
-                    console.log('Chat close button clicked');
-
-                    // Close the panel
-                    chatPanel.classList.add('collapsed');
-                    // Force a reflow
-                    void chatPanel.offsetWidth;
-                    // Set the width explicitly
-                    chatPanel.style.width = '0';
-                    chatPanel.style.maxWidth = '0';
-                    isAssistantWindowOpen = false;
-
-                    // Update the toggle button icon
-                    const chatToggleButton = document.getElementById('chat-toggle-btn');
-                    if (chatToggleButton) {
-                        chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
-                    }
-
-                    saveUserPreferences();
-                    console.log('Chat panel closed via close button');
-                }
+                e.preventDefault();
+                closeChatPanel();
             });
         }
 
