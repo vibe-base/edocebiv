@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /accounts/password/
+Disallow: /users/build/
+Disallow: /users/api/
+
+# Allow Google to index everything
+User-agent: Googlebot
+Allow: /
+
+# Allow Bing to index everything
+User-agent: Bingbot
+Allow: /
+
+# Sitemap location
+Sitemap: https://edocebiv.com/sitemap.xml

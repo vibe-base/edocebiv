@@ -23,4 +23,8 @@ urlpatterns = [
     path('accounts/', include('allauth.urls')),  # django-allauth URLs
     path('', TemplateView.as_view(template_name='home.html'), name='home'),  # Home page
     path('users/', include('users.urls')),  # Users app URLs
+
+    # SEO files
+    path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain')),
+    path('sitemap.xml', TemplateView.as_view(template_name='sitemap.xml', content_type='application/xml')),
 ]
