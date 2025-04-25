@@ -2548,17 +2548,26 @@
         const reasoningModeCheckbox = document.querySelector('#reasoning-mode-checkbox');
 
         // Set initial state based on user preferences
-        if (!isAssistantWindowOpen && chatPanel) {
-            chatPanel.classList.add('collapsed');
-            const chatToggleButton = document.getElementById('chat-toggle-btn');
-            if (chatToggleButton) {
-                chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
-            }
-        } else if (isAssistantWindowOpen && chatPanel) {
-            chatPanel.classList.remove('collapsed');
-            const chatToggleButton = document.getElementById('chat-toggle-btn');
-            if (chatToggleButton) {
-                chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
+        if (chatPanel) {
+            console.log('Initial assistant window state:', isAssistantWindowOpen ? 'open' : 'closed');
+
+            // Force the panel to the correct state based on user preference
+            if (isAssistantWindowOpen) {
+                // Open the panel - explicitly remove the collapsed class
+                chatPanel.classList.remove('collapsed');
+                const chatToggleButton = document.getElementById('chat-toggle-btn');
+                if (chatToggleButton) {
+                    chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
+                }
+                console.log('Assistant window opened on load (user preference)');
+            } else {
+                // Close the panel - explicitly add the collapsed class
+                chatPanel.classList.add('collapsed');
+                const chatToggleButton = document.getElementById('chat-toggle-btn');
+                if (chatToggleButton) {
+                    chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
+                }
+                console.log('Assistant window closed on load (user preference)');
             }
         }
 
@@ -2605,15 +2614,28 @@
         // Listen for chat panel toggle
         const chatToggleBtn = document.getElementById('chat-toggle-btn');
         if (chatToggleBtn) {
-            chatToggleBtn.addEventListener('click', function() {
+            chatToggleBtn.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent default button behavior
+
                 if (chatPanel) {
-                    chatPanel.classList.toggle('collapsed');
-                    isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
-                    this.innerHTML = isAssistantWindowOpen ?
-                        '<i class="bi bi-chevron-right"></i>' :
-                        '<i class="bi bi-chat-dots"></i>';
+                    // Check current state
+                    const isCurrentlyClosed = chatPanel.classList.contains('collapsed');
+                    console.log('Chat toggle clicked. Current state:', isCurrentlyClosed ? 'closed' : 'open');
+
+                    if (isCurrentlyClosed) {
+                        // Open the panel
+                        chatPanel.classList.remove('collapsed');
+                        this.innerHTML = '<i class="bi bi-chevron-right"></i>';
+                        isAssistantWindowOpen = true;
+                    } else {
+                        // Close the panel
+                        chatPanel.classList.add('collapsed');
+                        this.innerHTML = '<i class="bi bi-chat-dots"></i>';
+                        isAssistantWindowOpen = false;
+                    }
+
                     saveUserPreferences();
-                    console.log('Chat panel toggled:', isAssistantWindowOpen);
+                    console.log('Chat panel toggled to:', isAssistantWindowOpen ? 'open' : 'closed');
                 }
             });
         }
@@ -2621,16 +2643,24 @@
         // Listen for chat close button
         const chatCloseBtn = document.getElementById('chat-close-btn');
         if (chatCloseBtn) {
-            chatCloseBtn.addEventListener('click', function() {
+            chatCloseBtn.addEventListener('click', function(e) {
+                e.preventDefault(); // Prevent default button behavior
+
                 if (chatPanel) {
+                    console.log('Chat close button clicked');
+
+                    // Close the panel
                     chatPanel.classList.add('collapsed');
                     isAssistantWindowOpen = false;
+
+                    // Update the toggle button icon
                     const chatToggleButton = document.getElementById('chat-toggle-btn');
                     if (chatToggleButton) {
                         chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
                     }
+
                     saveUserPreferences();
-                    console.log('Chat panel closed');
+                    console.log('Chat panel closed via close button');
                 }
             });
         }
