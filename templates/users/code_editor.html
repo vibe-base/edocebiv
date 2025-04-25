@@ -1274,7 +1274,7 @@
         console.log(`Tool executed: ${toolName}`, result);
 
         // Refresh the file explorer for file operations
-        if (['write_file', 'create_file', 'delete_file', 'update_file'].includes(toolName)) {
+        if (['write_file', 'create_file', 'delete_file', 'update_file', 'apply_patch'].includes(toolName)) {
             console.log('Refreshing file explorer due to file operation');
             refreshFileExplorer();
 
@@ -1289,12 +1289,27 @@
             if (toolName === 'create_file' || toolName === 'write_file') {
                 showToast(`File created/updated: ${result.file_path}`, 'success');
             }
+
+            // If a patch was applied, show a toast notification
+            if (toolName === 'apply_patch') {
+                showToast(`Patch applied to: ${result.file_path}`, 'success');
+            }
         }
 
         // For run_file operations, show a toast notification
         if (toolName === 'run_file') {
             const status = result.status === 'success' ? 'success' : 'error';
             showToast(`File executed: ${result.file_path}`, status);
+        }
+
+        // For generate_diff operations, show a toast notification
+        if (toolName === 'generate_diff') {
+            const status = result.status === 'success' ? 'success' : 'error';
+            if (result.has_changes) {
+                showToast(`Diff generated${result.file_path ? ` for ${result.file_path}` : ''}`, status);
+            } else {
+                showToast(`No differences found${result.file_path ? ` for ${result.file_path}` : ''}`, 'info');
+            }
         }
     }
 

@@ -7,6 +7,8 @@ import shutil
 import logging
 import subprocess
 import tempfile
+import difflib
+import re
 from .mcp import MCP, tool
 from .docker_utils import docker_manager
 
@@ -436,3 +438,227 @@ class FileOperations(MCP):
                 "message": f"Error running file: {str(e)}",
                 "file_path": normalized_path if 'normalized_path' in locals() else file_path
             }
+
+    @tool(name="generate_diff", description="Generate a diff between original and new content")
+    def generate_diff(self, original_content, new_content, file_path=None):
+        """
+        Generate a diff between original and new content.
+
+        :param original_content: Original content string
+        :param new_content: New content string
+        :param file_path: Optional file path for context
+        :return: Dict with diff result
+        """
+        logger.info(f"Generating diff for content" + (f" in file: {file_path}" if file_path else ""))
+
+        try:
+            # Split content into lines
+            original_lines = original_content.splitlines(keepends=True)
+            new_lines = new_content.splitlines(keepends=True)
+
+            # Generate unified diff
+            diff = difflib.unified_diff(
+                original_lines,
+                new_lines,
+                fromfile=f"original/{file_path}" if file_path else "original",
+                tofile=f"new/{file_path}" if file_path else "new",
+                n=3  # Context lines
+            )
+
+            # Convert diff iterator to string
+            diff_text = ''.join(diff)
+
+            # If there's no difference, return a message
+            if not diff_text:
+                return {
+                    "status": "success",
+                    "message": "No differences found between the contents.",
+                    "file_path": file_path,
+                    "diff": "",
+                    "has_changes": False
+                }
+
+            return {
+                "status": "success",
+                "message": "Diff generated successfully.",
+                "file_path": file_path,
+                "diff": diff_text,
+                "has_changes": True
+            }
+
+        except Exception as e:
+            logger.exception(f"Error generating diff: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Error generating diff: {str(e)}",
+                "file_path": file_path
+            }
+
+    @tool(name="apply_patch", description="Apply a patch to a file")
+    def apply_patch(self, file_path, patch_content):
+        """
+        Apply a patch to a file.
+
+        :param file_path: Path to the file to patch
+        :param patch_content: The patch content to apply
+        :return: Dict with patching result
+        """
+        logger.info(f"Applying patch to file: {file_path}")
+
+        try:
+            # Normalize the file path
+            normalized_path = file_path.lstrip('/')
+
+            # Security check: make sure the file is within the project directory
+            full_path = os.path.join(self.data_dir, normalized_path)
+            if os.path.commonpath([full_path, self.data_dir]) != self.data_dir:
+                return {
+                    "status": "error",
+                    "message": "Invalid file path. The file must be within the project directory."
+                }
+
+            # Check if the file exists
+            if not os.path.exists(full_path):
+                return {
+                    "status": "error",
+                    "message": f"File {normalized_path} does not exist."
+                }
+
+            # Check if it's a directory
+            if os.path.isdir(full_path):
+                return {
+                    "status": "error",
+                    "message": f"{normalized_path} is a directory, not a file."
+                }
+
+            # Read the current content of the file
+            with open(full_path, 'r') as f:
+                original_content = f.read()
+
+            # Parse the patch to extract the changes
+            # This is a simplified patch parser that handles unified diff format
+            new_content = self._apply_unified_diff(original_content, patch_content)
+
+            if new_content is None:
+                return {
+                    "status": "error",
+                    "message": "Failed to apply patch. The patch format may be invalid or doesn't match the file."
+                }
+
+            # Write the patched content back to the file
+            with open(full_path, 'w') as f:
+                f.write(new_content)
+
+            return {
+                "status": "success",
+                "message": f"Patch applied successfully to {normalized_path}.",
+                "file_path": normalized_path,
+                "original_content": original_content,
+                "new_content": new_content
+            }
+
+        except Exception as e:
+            logger.exception(f"Error applying patch: {str(e)}")
+            return {
+                "status": "error",
+                "message": f"Error applying patch: {str(e)}",
+                "file_path": file_path if 'file_path' in locals() else None
+            }
+
+    def _apply_unified_diff(self, original_content, patch_content):
+        """
+        Apply a unified diff to the original content.
+
+        :param original_content: Original content string
+        :param patch_content: Unified diff patch string
+        :return: New content string or None if patch failed
+        """
+        try:
+            # Split content into lines
+            original_lines = original_content.splitlines()
+
+            # Parse the patch
+            current_line = 0
+            new_lines = original_lines.copy()
+
+            # Extract hunks from the patch
+            hunks = []
+            current_hunk = None
+
+            for line in patch_content.splitlines():
+                # Skip the header lines (starting with ---, +++ or @@)
+                if line.startswith('---') or line.startswith('+++'):
+                    continue
+
+                # Start of a new hunk
+                if line.startswith('@@'):
+                    # Parse the hunk header to get line numbers
+                    # Format: @@ -start,count +start,count @@
+                    match = re.match(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@', line)
+                    if not match:
+                        continue
+
+                    old_start = int(match.group(1))
+                    old_count = int(match.group(2) or 1)
+                    new_start = int(match.group(3))
+                    new_count = int(match.group(4) or 1)
+
+                    current_hunk = {
+                        'old_start': old_start - 1,  # 0-based indexing
+                        'old_count': old_count,
+                        'new_start': new_start - 1,  # 0-based indexing
+                        'new_count': new_count,
+                        'lines': []
+                    }
+                    hunks.append(current_hunk)
+                    continue
+
+                # Add lines to the current hunk
+                if current_hunk is not None:
+                    current_hunk['lines'].append(line)
+
+            # Apply hunks in reverse order to avoid line number changes
+            for hunk in reversed(hunks):
+                old_start = hunk['old_start']
+                old_count = hunk['old_count']
+                lines = hunk['lines']
+
+                # Verify that the context lines match
+                context_match = True
+                old_index = old_start
+
+                for line in lines:
+                    if line.startswith(' '):  # Context line
+                        if old_index >= len(original_lines) or original_lines[old_index] != line[1:]:
+                            context_match = False
+                            break
+                        old_index += 1
+                    elif line.startswith('-'):  # Removal line
+                        if old_index >= len(original_lines) or original_lines[old_index] != line[1:]:
+                            context_match = False
+                            break
+                        old_index += 1
+                    # Skip addition lines for context matching
+
+                if not context_match:
+                    logger.warning("Patch context doesn't match the file content")
+                    continue
+
+                # Apply the hunk
+                new_hunk_lines = []
+                for line in lines:
+                    if line.startswith('+'):  # Addition
+                        new_hunk_lines.append(line[1:])
+                    elif line.startswith(' '):  # Context
+                        new_hunk_lines.append(line[1:])
+                    # Skip removal lines
+
+                # Replace the old lines with the new lines
+                new_lines[old_start:old_start + old_count] = new_hunk_lines
+
+            # Join the lines back into a string
+            return '\n'.join(new_lines)
+
+        except Exception as e:
+            logger.exception(f"Error applying unified diff: {str(e)}")
+            return None

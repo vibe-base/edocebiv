@@ -30,6 +30,8 @@ You have access to the following tools that you MUST use to accomplish the task:
 - list_files: List files and directories in a directory
 - run_file: Run a file in the project's container
 - delete_file: Delete a file or directory in the project
+- generate_diff: Generate a diff between original and new content
+- apply_patch: Apply a patch to a file
 
 Be thorough but concise. Focus on creating a practical, step-by-step plan that you will execute.
 """,
@@ -44,6 +46,7 @@ Examine the provided code carefully and provide insights on:
 You have access to the following tools that you MUST use to accomplish the task:
 - read_file: Read the content of a file in the project
 - list_files: List files and directories in a directory
+- generate_diff: Generate a diff between original and new content
 
 Be thorough and precise in your analysis. This will be used to guide further actions.
 """,
@@ -60,6 +63,8 @@ You have access to the following tools that you MUST use to accomplish the task:
 - read_file: Read the content of a file in the project
 - write_file: Write content to a file in the project
 - list_files: List files and directories in a directory
+- generate_diff: Generate a diff between original and new content
+- apply_patch: Apply a patch to a file
 
 IMPORTANT: You MUST use the write_file tool to create files. DO NOT just describe the code.
 Example of using the write_file tool:
@@ -73,7 +78,30 @@ I'll create a Python file that prints "Hello, World!":
 }
 ```
 
-After using the tool, verify the result and proceed with the next steps.
+For modifying existing files, you can use generate_diff and apply_patch:
+```
+I'll update the existing file by generating a diff and applying it:
+
+[Tool Call: read_file]
+{
+  "file_path": "hello.py"
+}
+
+[Tool Call: generate_diff]
+{
+  "original_content": "print('Hello, World!')",
+  "new_content": "print('Hello, Updated World!')",
+  "file_path": "hello.py"
+}
+
+[Tool Call: apply_patch]
+{
+  "file_path": "hello.py",
+  "patch_content": "--- original/hello.py\\n+++ new/hello.py\\n@@ -1 +1 @@\\n-print('Hello, World!')\\n+print('Hello, Updated World!')"
+}
+```
+
+After using the tools, verify the results and proceed with the next steps.
 """,
 
     "code_execution": """You are an expert in executing and testing code.
@@ -87,6 +115,8 @@ You have access to the following tools that you MUST use to accomplish the task:
 - read_file: Read the content of a file in the project
 - write_file: Write content to a file in the project
 - run_file: Run a file in the project's container
+- generate_diff: Generate a diff between original and new content
+- apply_patch: Apply a patch to a file
 
 IMPORTANT: You MUST use the run_file tool to execute the code. DO NOT just describe how to run it.
 Example of using the run_file tool:
@@ -96,6 +126,29 @@ I'll run the Python file:
 [Tool Call: run_file]
 {
   "file_path": "hello.py"
+}
+```
+
+If you need to fix issues in the code, you can use generate_diff and apply_patch:
+```
+I'll fix the code by generating a diff and applying it:
+
+[Tool Call: read_file]
+{
+  "file_path": "hello.py"
+}
+
+[Tool Call: generate_diff]
+{
+  "original_content": "print('Hello, World!'",  # Note the missing closing parenthesis
+  "new_content": "print('Hello, World!')",  # Fixed version
+  "file_path": "hello.py"
+}
+
+[Tool Call: apply_patch]
+{
+  "file_path": "hello.py",
+  "patch_content": "--- original/hello.py\\n+++ new/hello.py\\n@@ -1 +1 @@\\n-print('Hello, World!'\\n+print('Hello, World!')"
 }
 ```
 
@@ -114,15 +167,18 @@ You have access to the following tools that you MUST use to accomplish the task:
 - read_file: Read the content of a file in the project
 - write_file: Write content to a file in the project
 - run_file: Run a file in the project's container
+- generate_diff: Generate a diff between original and new content
+- apply_patch: Apply a patch to a file
 
 DO NOT just describe the tests - actually create and run them using the tools.
+If you need to modify existing test files, use generate_diff and apply_patch.
 Be thorough and methodical in your approach to testing.
 """,
 
     "refinement": """You are an expert in code refinement and optimization.
 Based on the previous steps and feedback, your job is to:
 1. Identify areas for improvement in the code
-2. Implement specific optimizations or refactorings using the write_file tool
+2. Implement specific optimizations or refactorings
 3. Address any issues or bugs discovered
 4. Enhance the code's readability, performance, or maintainability
 
@@ -130,8 +186,33 @@ You have access to the following tools that you MUST use to accomplish the task:
 - read_file: Read the content of a file in the project
 - write_file: Write content to a file in the project
 - run_file: Run a file in the project's container
+- generate_diff: Generate a diff between original and new content
+- apply_patch: Apply a patch to a file
 
-DO NOT just suggest improvements - actually implement them using the write_file tool.
+For small changes to existing files, use generate_diff and apply_patch:
+```
+I'll refactor this code by generating a diff and applying it:
+
+[Tool Call: read_file]
+{
+  "file_path": "example.py"
+}
+
+[Tool Call: generate_diff]
+{
+  "original_content": "def calculate(x, y):\\n    return x + y",
+  "new_content": "def calculate(x, y):\\n    \"\"\"Add two numbers and return the result.\"\"\"\\n    return x + y",
+  "file_path": "example.py"
+}
+
+[Tool Call: apply_patch]
+{
+  "file_path": "example.py",
+  "patch_content": "--- original/example.py\\n+++ new/example.py\\n@@ -1 +1,2 @@\\n def calculate(x, y):\\n+    \"\"\"Add two numbers and return the result.\"\"\"\\n     return x + y"
+}
+```
+
+DO NOT just suggest improvements - actually implement them using the appropriate tools.
 Provide specific, actionable improvements.
 """,
 
@@ -265,6 +346,52 @@ class SimpleReasoning:
                         "required": ["file_path"]
                     }
                 }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generate_diff",
+                    "description": "Generate a diff between original and new content.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "original_content": {
+                                "type": "string",
+                                "description": "Original content"
+                            },
+                            "new_content": {
+                                "type": "string",
+                                "description": "New content"
+                            },
+                            "file_path": {
+                                "type": "string",
+                                "description": "Optional file path for context"
+                            }
+                        },
+                        "required": ["original_content", "new_content"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "apply_patch",
+                    "description": "Apply a patch to a file.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {
+                                "type": "string",
+                                "description": "Path to the file to patch"
+                            },
+                            "patch_content": {
+                                "type": "string",
+                                "description": "The patch content to apply"
+                            }
+                        },
+                        "required": ["file_path", "patch_content"]
+                    }
+                }
             }
         ]
 
@@ -331,6 +458,29 @@ class SimpleReasoning:
 
                 logger.info(f"Deleting file: {file_path}")
                 result = self.file_ops.delete_file(file_path)
+
+            elif tool_name == "generate_diff":
+                original_content = arguments.get("original_content", "")
+                new_content = arguments.get("new_content", "")
+                file_path = arguments.get("file_path")
+
+                if not original_content or not new_content:
+                    return {"status": "error", "message": "Both original_content and new_content must be provided"}
+
+                logger.info(f"Generating diff" + (f" for file: {file_path}" if file_path else ""))
+                result = self.file_ops.generate_diff(original_content, new_content, file_path)
+
+            elif tool_name == "apply_patch":
+                file_path = arguments.get("file_path", "")
+                patch_content = arguments.get("patch_content", "")
+
+                if not file_path:
+                    return {"status": "error", "message": "No file path provided"}
+                if not patch_content:
+                    return {"status": "error", "message": "No patch content provided"}
+
+                logger.info(f"Applying patch to file: {file_path}")
+                result = self.file_ops.apply_patch(file_path, patch_content)
 
             else:
                 logger.warning(f"Unknown tool: {tool_name}")
