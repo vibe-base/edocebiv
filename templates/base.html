@@ -32,6 +32,7 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            padding-bottom: 300px; /* Add padding to prevent content from being hidden behind the fixed footer */
         }
 
         .navbar {
@@ -138,7 +139,7 @@
 
     <!-- Footer (hidden on editor page) -->
     {% block footer %}
-    <footer class="bg-dark text-white py-4 mt-5">
+    <footer class="bg-dark text-white py-4 mt-5 fixed-bottom">
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
