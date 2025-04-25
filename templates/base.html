@@ -145,33 +145,33 @@
                     <h5 class="mb-3">
                         <i class="bi bi-code-square me-2"></i>Edocebiv
                     </h5>
-                    <p class="text-muted">The modern platform for developing, deploying, and managing your projects.</p>
+                    <p class="text-white-50">The modern platform for developing, deploying, and managing your projects.</p>
                 </div>
                 <div class="col-md-3">
-                    <h5 class="mb-3">Links</h5>
+                    <h5 class="mb-3">Site Navigation</h5>
                     <ul class="list-unstyled">
-                        <li class="mb-2"><a href="{% url 'home' %}" class="text-decoration-none text-muted">Home</a></li>
+                        <li class="mb-2"><a href="{% url 'home' %}" class="text-decoration-none text-white-50">Home</a></li>
                         {% if user.is_authenticated %}
-                            <li class="mb-2"><a href="{% url 'project_list' %}" class="text-decoration-none text-muted">My Projects</a></li>
-                            <li class="mb-2"><a href="{% url 'profile_view' %}" class="text-decoration-none text-muted">Profile</a></li>
+                            <li class="mb-2"><a href="{% url 'project_list' %}" class="text-decoration-none text-white-50">My Projects</a></li>
+                            <li class="mb-2"><a href="{% url 'profile_view' %}" class="text-decoration-none text-white-50">Profile</a></li>
                         {% else %}
-                            <li class="mb-2"><a href="{% url 'account_signup' %}" class="text-decoration-none text-muted">Sign Up</a></li>
+                            <li class="mb-2"><a href="{% url 'account_signup' %}" class="text-decoration-none text-white-50">Sign Up</a></li>
                         {% endif %}
                     </ul>
                 </div>
                 <div class="col-md-3">
                     <h5 class="mb-3">Connect</h5>
                     <div class="d-flex gap-3">
-                        <a href="#" class="text-decoration-none text-muted fs-5"><i class="bi bi-github"></i></a>
-                        <a href="https://x.com/edocebiv" class="text-decoration-none text-muted fs-5" target="_blank"><i class="bi bi-twitter-x"></i></a>
-                        <a href="#" class="text-decoration-none text-muted fs-5"><i class="bi bi-linkedin"></i></a>
+                        <a href="https://github.com/vibe-base" class="text-decoration-none text-white fs-5" target="_blank"><i class="bi bi-github"></i></a>
+                        <a href="https://x.com/edocebiv" class="text-decoration-none text-white fs-5" target="_blank"><i class="bi bi-twitter-x"></i></a>
+                        <a href="#" class="text-decoration-none text-white-50 fs-5"><i class="bi bi-linkedin"></i></a>
                     </div>
                 </div>
             </div>
             <hr class="my-4">
             <div class="row">
                 <div class="col-md-6">
-                    <p class="text-muted mb-0">&copy; 2025 Edocebiv. All rights reserved.</p>
+                    <p class="text-white-50 mb-0">&copy; 2025 Edocebiv. All rights reserved.</p>
                 </div>
             </div>
         </div>
