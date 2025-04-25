@@ -1237,6 +1237,9 @@
     // Global variables for chat functionality
     let globalChatMessages;
     let globalAddMessage;
+    let globalProcessCodeBlocks;
+    let globalToggleStep;
+    let globalToggleCodeBlock;
 
     // Global function to load chat history
     function globalLoadChatHistory() {
@@ -1276,30 +1279,7 @@
                             if (typeof globalAddMessage === 'function') {
                                 globalAddMessage(msg.content, msg.role);
                             } else {
-                                const messageDiv = document.createElement('div');
-                                messageDiv.className = `chat-message ${msg.role}`;
-
-                                const senderDiv = document.createElement('div');
-                                senderDiv.className = 'chat-message-sender';
-
-                                // Set the sender name based on the role
-                                if (msg.role === 'user') {
-                                    senderDiv.textContent = 'You';
-                                } else if (msg.role === 'system') {
-                                    senderDiv.textContent = 'System';
-                                    messageDiv.classList.add('system-message');
-                                } else {
-                                    senderDiv.textContent = 'AI Assistant';
-                                }
-
-                                const contentDiv = document.createElement('div');
-                                contentDiv.className = 'chat-message-content';
-                                contentDiv.innerHTML = msg.content.replace(/\n/g, '<br>');
-
-                                messageDiv.appendChild(senderDiv);
-                                messageDiv.appendChild(contentDiv);
-
-                                globalChatMessages.appendChild(messageDiv);
+                                addMessageFallback(msg.content, msg.role);
                             }
                         });
                     }
@@ -1316,6 +1296,80 @@
                 globalChatMessages.innerHTML = `<div class="chat-message assistant"><div class="chat-message-sender">AI Assistant</div><div class="chat-message-content">Error loading chat history: ${error.message}</div></div>`;
             });
     }
+
+    // Fallback function to add a message when the main function is not available
+    function addMessageFallback(content, sender) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${sender}`;
+
+        const senderDiv = document.createElement('div');
+        senderDiv.className = 'chat-message-sender';
+
+        // Set the sender name based on the role
+        if (sender === 'user') {
+            senderDiv.textContent = 'You';
+        } else if (sender === 'system') {
+            senderDiv.textContent = 'System';
+            messageDiv.classList.add('system-message');
+        } else {
+            senderDiv.textContent = 'AI Assistant';
+        }
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'chat-message-content';
+
+        // Process assistant messages with special formatting
+        if (sender === 'assistant') {
+            // Check if we should process this as a step-by-step response
+            const hasSteps = /(\n|^)(Step \d+:|^\d+[\.\)]) /m.test(content);
+
+            if (hasSteps && typeof window.processStepContent === 'function') {
+                contentDiv.innerHTML = window.processStepContent(content);
+            } else if (content.includes('```') && typeof window.processCodeBlocks === 'function') {
+                contentDiv.innerHTML = window.processCodeBlocks(content);
+            } else {
+                contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+            }
+        } else {
+            contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+        }
+
+        messageDiv.appendChild(senderDiv);
+        messageDiv.appendChild(contentDiv);
+
+        globalChatMessages.appendChild(messageDiv);
+    }
+
+    // Global toggle functions that will be defined in the DOMContentLoaded event
+    window.toggleStep = function(header) {
+        const content = header.nextElementSibling;
+        const icon = header.querySelector('.toggle-icon');
+
+        if (content.style.maxHeight) {
+            // Collapse
+            content.style.maxHeight = null;
+            icon.classList.add('collapsed');
+        } else {
+            // Expand
+            content.style.maxHeight = content.scrollHeight + "px";
+            icon.classList.remove('collapsed');
+        }
+    };
+
+    window.toggleCodeBlock = function(header) {
+        const codeBlock = header.nextElementSibling;
+        const icon = header.querySelector('.toggle-icon');
+
+        if (codeBlock.classList.contains('collapsed')) {
+            // Expand
+            codeBlock.classList.remove('collapsed');
+            icon.classList.remove('collapsed');
+        } else {
+            // Collapse
+            codeBlock.classList.add('collapsed');
+            icon.classList.add('collapsed');
+        }
+    };
     // WebSocket connection for real-time updates
     let toolSocket;
 
@@ -1707,6 +1761,90 @@
             addMessage(content, sender);
         };
 
+        // Set global processCodeBlocks function
+        window.processCodeBlocks = processCodeBlocks;
+
+        // Set global processStepContent function
+        window.processStepContent = function(content) {
+            // Process as step-by-step content
+            const toolResultsPlaceholders = [];
+            let processedContent = content.replace(/<div class="chat-tool-result.*?<\/div>/gs, (match) => {
+                const placeholder = `__TOOL_RESULT_${toolResultsPlaceholders.length}__`;
+                toolResultsPlaceholders.push(match);
+                return placeholder;
+            });
+
+            const stepRegex = /(?:\n|^)(Step \d+:|^\d+[\.\)]) (.*?)(?=\n(?:Step \d+:|^\d+[\.\)]) |$)/gs;
+            let match;
+            let stepHtml = '';
+            let stepCount = 0;
+
+            // Extract introduction text (before the first step)
+            let introText = '';
+            const firstStepMatch = processedContent.match(/(?:\n|^)(Step \d+:|^\d+[\.\)]) /m);
+            if (firstStepMatch) {
+                const firstStepIndex = firstStepMatch.index;
+                introText = processedContent.substring(0, firstStepIndex).trim();
+                if (introText) {
+                    stepHtml += `<div class="assistant-intro">${introText.replace(/\n/g, '<br>')}</div>`;
+                }
+            }
+
+            // Process each step
+            while ((match = stepRegex.exec(processedContent + '\n')) !== null) {
+                stepCount++;
+                const stepTitle = match[1].trim();
+                let stepContent = match[2].trim();
+
+                // Process code blocks within this step
+                if (stepContent.includes('```')) {
+                    stepContent = processCodeBlocks(stepContent);
+                } else {
+                    stepContent = stepContent.replace(/\n/g, '<br>');
+                }
+
+                // Create collapsible step
+                stepHtml += `
+                    <div class="assistant-step" data-step="${stepCount}">
+                        <div class="assistant-step-header" onclick="toggleStep(this)">
+                            <span>${stepTitle}</span>
+                            <span class="toggle-icon">▼</span>
+                        </div>
+                        <div class="assistant-step-content" style="max-height: 1000px;">
+                            ${stepContent}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Extract conclusion text (after the last step)
+            const lastStepMatch = Array.from(processedContent.matchAll(/(?:\n|^)(Step \d+:|^\d+[\.\)]) /gm)).pop();
+            if (lastStepMatch) {
+                const lastStepContent = processedContent.substring(lastStepMatch.index).trim();
+                const nextStepMatch = lastStepContent.match(/\n(Step \d+:|^\d+[\.\)]) /m);
+                if (nextStepMatch) {
+                    const lastStepEnd = lastStepMatch.index + nextStepMatch.index + nextStepMatch[0].length;
+                    const conclusionText = processedContent.substring(lastStepEnd).trim();
+                    if (conclusionText) {
+                        let conclusion = conclusionText;
+                        if (conclusion.includes('```')) {
+                            conclusion = processCodeBlocks(conclusion);
+                        } else {
+                            conclusion = conclusion.replace(/\n/g, '<br>');
+                        }
+                        stepHtml += `<div class="assistant-conclusion">${conclusion}</div>`;
+                    }
+                }
+            }
+
+            // Now put back the tool results
+            toolResultsPlaceholders.forEach((toolResult, index) => {
+                stepHtml = stepHtml.replace(`__TOOL_RESULT_${index}__`, toolResult);
+            });
+
+            return stepHtml;
+        };
+
         // Toggle chat panel
         chatToggleBtn.addEventListener('click', function() {
             chatPanel.classList.toggle('collapsed');
@@ -1810,9 +1948,9 @@
             const contentDiv = document.createElement('div');
             contentDiv.className = 'chat-message-content';
 
-            // Check if content contains HTML (from tool results)
-            if (sender === 'assistant' && (content.includes('<div class="chat-tool-result') || content.includes('```'))) {
-                // Process content with both HTML and code blocks
+            // Check if content contains HTML (from tool results) or code blocks
+            if (sender === 'assistant') {
+                // Process assistant messages with special formatting
 
                 // First, handle any HTML tool results that might be present
                 // We'll temporarily replace them with placeholders to avoid conflicts with markdown processing
@@ -1823,37 +1961,104 @@
                     return placeholder;
                 });
 
-                // Now process markdown code blocks
-                if (processedContent.includes('```')) {
-                    let parts = processedContent.split(/```(?:(\w+)\n)?/);
-                    processedContent = '';
+                // Check if we should process this as a step-by-step response
+                // Look for patterns like "Step 1:", "1.", "1)", etc.
+                const hasSteps = /(\n|^)(Step \d+:|^\d+[\.\)]) /m.test(processedContent);
 
-                    for (let i = 0; i < parts.length; i++) {
-                        if (i % 2 === 0) {
-                            // Regular text - convert newlines to <br> tags
-                            processedContent += parts[i].replace(/\n/g, '<br>');
-                        } else {
-                            // Code block
-                            const language = parts[i-1] || '';
-                            const code = parts[i+1] || '';
-                            i++; // Skip the next part which is the code content
+                if (hasSteps) {
+                    // Process as step-by-step content
+                    const stepRegex = /(?:\n|^)(Step \d+:|^\d+[\.\)]) (.*?)(?=\n(?:Step \d+:|^\d+[\.\)]) |$)/gs;
+                    let match;
+                    let stepHtml = '';
+                    let stepCount = 0;
 
-                            processedContent += `<div class="chat-code-block">${code}</div>`;
+                    // Extract introduction text (before the first step)
+                    let introText = '';
+                    const firstStepMatch = processedContent.match(/(?:\n|^)(Step \d+:|^\d+[\.\)]) /m);
+                    if (firstStepMatch) {
+                        const firstStepIndex = firstStepMatch.index;
+                        introText = processedContent.substring(0, firstStepIndex).trim();
+                        if (introText) {
+                            stepHtml += `<div class="assistant-intro">${introText.replace(/\n/g, '<br>')}</div>`;
                         }
                     }
+
+                    // Process each step
+                    while ((match = stepRegex.exec(processedContent + '\n')) !== null) {
+                        stepCount++;
+                        const stepTitle = match[1].trim();
+                        let stepContent = match[2].trim();
+
+                        // Process code blocks within this step
+                        if (stepContent.includes('```')) {
+                            stepContent = processCodeBlocks(stepContent);
+                        } else {
+                            stepContent = stepContent.replace(/\n/g, '<br>');
+                        }
+
+                        // Create collapsible step
+                        stepHtml += `
+                            <div class="assistant-step" data-step="${stepCount}">
+                                <div class="assistant-step-header" onclick="toggleStep(this)">
+                                    <span>${stepTitle}</span>
+                                    <span class="toggle-icon">▼</span>
+                                </div>
+                                <div class="assistant-step-content" style="max-height: 1000px;">
+                                    ${stepContent}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // Extract conclusion text (after the last step)
+                    const lastStepMatch = Array.from(processedContent.matchAll(/(?:\n|^)(Step \d+:|^\d+[\.\)]) /gm)).pop();
+                    if (lastStepMatch) {
+                        const lastStepContent = processedContent.substring(lastStepMatch.index).trim();
+                        const nextStepMatch = lastStepContent.match(/\n(Step \d+:|^\d+[\.\)]) /m);
+                        if (nextStepMatch) {
+                            const lastStepEnd = lastStepMatch.index + nextStepMatch.index + nextStepMatch[0].length;
+                            const conclusionText = processedContent.substring(lastStepEnd).trim();
+                            if (conclusionText) {
+                                let conclusion = conclusionText;
+                                if (conclusion.includes('```')) {
+                                    conclusion = processCodeBlocks(conclusion);
+                                } else {
+                                    conclusion = conclusion.replace(/\n/g, '<br>');
+                                }
+                                stepHtml += `<div class="assistant-conclusion">${conclusion}</div>`;
+                            }
+                        }
+                    }
+
+                    // Now put back the tool results
+                    toolResultsPlaceholders.forEach((toolResult, index) => {
+                        stepHtml = stepHtml.replace(`__TOOL_RESULT_${index}__`, toolResult);
+                    });
+
+                    contentDiv.innerHTML = stepHtml;
+                } else if (processedContent.includes('```')) {
+                    // Process content with code blocks but no steps
+                    processedContent = processCodeBlocks(processedContent);
+
+                    // Now put back the tool results
+                    toolResultsPlaceholders.forEach((toolResult, index) => {
+                        processedContent = processedContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
+                    });
+
+                    contentDiv.innerHTML = processedContent;
                 } else {
-                    // No code blocks, just convert newlines
+                    // No code blocks or steps, just convert newlines
                     processedContent = processedContent.replace(/\n/g, '<br>');
+
+                    // Now put back the tool results
+                    toolResultsPlaceholders.forEach((toolResult, index) => {
+                        processedContent = processedContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
+                    });
+
+                    contentDiv.innerHTML = processedContent;
                 }
-
-                // Now put back the tool results
-                toolResultsPlaceholders.forEach((toolResult, index) => {
-                    processedContent = processedContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
-                });
-
-                contentDiv.innerHTML = processedContent;
             } else {
-                // Convert newlines to <br> tags
+                // For user and system messages, just convert newlines to <br> tags
                 contentDiv.innerHTML = content.replace(/\n/g, '<br>');
             }
 
@@ -1863,6 +2068,69 @@
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
+
+        // Helper function to process code blocks
+        function processCodeBlocks(content) {
+            let parts = content.split(/```(?:(\w+)\n)?/);
+            let processedContent = '';
+
+            for (let i = 0; i < parts.length; i++) {
+                if (i % 2 === 0) {
+                    // Regular text - convert newlines to <br> tags
+                    processedContent += parts[i].replace(/\n/g, '<br>');
+                } else {
+                    // Code block
+                    const language = parts[i-1] || '';
+                    const code = parts[i+1] || '';
+                    i++; // Skip the next part which is the code content
+
+                    // Create collapsible code block
+                    processedContent += `
+                        <div class="chat-code-block-container">
+                            <div class="chat-code-block-header" onclick="toggleCodeBlock(this)">
+                                <span>${language ? language : 'Code'}</span>
+                                <span class="toggle-icon">▼</span>
+                            </div>
+                            <div class="chat-code-block">${code}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            return processedContent;
+        }
+
+        // Function to toggle step visibility
+        window.toggleStep = function(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+
+            if (content.style.maxHeight) {
+                // Collapse
+                content.style.maxHeight = null;
+                icon.classList.add('collapsed');
+            } else {
+                // Expand
+                content.style.maxHeight = content.scrollHeight + "px";
+                icon.classList.remove('collapsed');
+            }
+        };
+
+        // Function to toggle code block visibility
+        window.toggleCodeBlock = function(header) {
+            const codeBlock = header.nextElementSibling;
+            const icon = header.querySelector('.toggle-icon');
+
+            if (codeBlock.classList.contains('collapsed')) {
+                // Expand
+                codeBlock.classList.remove('collapsed');
+                icon.classList.remove('collapsed');
+            } else {
+                // Collapse
+                codeBlock.classList.add('collapsed');
+                icon.classList.add('collapsed');
+            }
+        };
 
         // Function to add a loading indicator
         function addLoadingIndicator() {
