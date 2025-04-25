@@ -112,38 +112,24 @@ class AIReasoning:
         self.project = project
         self.api_key = api_key
 
-        # Initialize LLMs with proper configuration
-        try:
-            # First try with standard parameters
-            self.llm_o1 = ChatOpenAI(
-                model="o1",
-                temperature=0,
-                api_key=api_key,
-                max_tokens=4000
-            )
+        # Initialize LLMs with minimal configuration to avoid compatibility issues
+        from openai import OpenAI
 
-            self.llm_o4 = ChatOpenAI(
-                model="gpt-4o",
-                temperature=0.2,
-                api_key=api_key,
-                max_tokens=4000
-            )
-        except TypeError as e:
-            # Fall back to older parameter style if needed
-            logger.warning(f"Using fallback LLM initialization: {str(e)}")
-            self.llm_o1 = ChatOpenAI(
-                model_name="o1",
-                temperature=0,
-                openai_api_key=api_key,
-                max_tokens=4000
-            )
+        # Create a simple OpenAI client
+        openai_client = OpenAI(api_key=api_key)
 
-            self.llm_o4 = ChatOpenAI(
-                model_name="gpt-4o",
-                temperature=0.2,
-                openai_api_key=api_key,
-                max_tokens=4000
-            )
+        # Initialize LLMs with minimal parameters
+        self.llm_o1 = ChatOpenAI(
+            model="o1",
+            temperature=0,
+            client=openai_client
+        )
+
+        self.llm_o4 = ChatOpenAI(
+            model="gpt-4o",
+            temperature=0.2,
+            client=openai_client
+        )
 
         # Initialize file operations
         self.file_ops = FileOperations(project, project.user)
