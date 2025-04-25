@@ -2713,6 +2713,8 @@
 
                     contentDiv.innerHTML = stepHtml;
                 } else {
+                    // Not a JSON response, process as regular content
+
                     // Check if we should process this as a step-by-step response
                     // Look for patterns like "Step 1:", "1.", "1)", "**Step 1**", etc.
                     const hasSteps = /(\n|^)(Step \d+:|^\d+[\.\)]) |(\*\*Step \d+[\*\:])/m.test(processedContent);
@@ -2811,27 +2813,27 @@
                         });
 
                         contentDiv.innerHTML = stepHtml;
+                    } else if (processedContent.includes('```')) {
+                        // Process content with code blocks but no steps
+                        processedContent = processCodeBlocks(processedContent);
+
+                        // Now put back the tool results
+                        toolResultsPlaceholders.forEach((toolResult, index) => {
+                            processedContent = processedContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
+                        });
+
+                        contentDiv.innerHTML = processedContent;
+                    } else {
+                        // No code blocks or steps, just convert newlines
+                        processedContent = processedContent.replace(/\n/g, '<br>');
+
+                        // Now put back the tool results
+                        toolResultsPlaceholders.forEach((toolResult, index) => {
+                            processedContent = processedContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
+                        });
+
+                        contentDiv.innerHTML = processedContent;
                     }
-                } else if (processedContent.includes('```')) {
-                    // Process content with code blocks but no steps
-                    processedContent = processCodeBlocks(processedContent);
-
-                    // Now put back the tool results
-                    toolResultsPlaceholders.forEach((toolResult, index) => {
-                        processedContent = processedContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
-                    });
-
-                    contentDiv.innerHTML = processedContent;
-                } else {
-                    // No code blocks or steps, just convert newlines
-                    processedContent = processedContent.replace(/\n/g, '<br>');
-
-                    // Now put back the tool results
-                    toolResultsPlaceholders.forEach((toolResult, index) => {
-                        processedContent = processedContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
-                    });
-
-                    contentDiv.innerHTML = processedContent;
                 }
             } else {
                 // For user and system messages, just convert newlines to <br> tags
