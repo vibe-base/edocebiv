@@ -1498,6 +1498,9 @@
     let globalToggleStep;
     let globalToggleCodeBlock;
 
+    // Global variables for UI state
+    let isPreviewPanelOpen = false;
+
     // Global function to load chat history
     function globalLoadChatHistory() {
         console.log('Global load chat history called');
@@ -2232,6 +2235,10 @@
 
     // Chat panel functionality
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize global variables
+        let isAssistantWindowOpen = {% if user_profile.is_assistant_window_open %}true{% else %}false{% endif %};
+        let isReasoningModeOn = {% if user_profile.is_reasoning_mode_on %}true{% else %}false{% endif %};
+
         const chatPanel = document.getElementById('chat-panel');
         const chatToggleBtn = document.getElementById('chat-toggle-btn');
         const chatCloseBtn = document.getElementById('chat-close-btn');
