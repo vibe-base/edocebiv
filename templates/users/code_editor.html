@@ -2719,6 +2719,7 @@
                     // Check if we should process this as a step-by-step response
                     const hasSteps = /(\n|^)(Step \d+:|^\d+[\.\)]) |(\*\*Step \d+[\*\:])/m.test(processedContent);
                     console.log("Has steps:", hasSteps);
+                    console.log("DEBUG: Code has been updated!");
 
                     if (hasSteps) {
                         // Process as step-by-step content
@@ -2798,7 +2799,7 @@
                 stepHtml += `
                     <div class="assistant-step" data-step="${stepCount}">
                         <div class="assistant-step-header" onclick="toggleStep(this)">
-                            <span>${stepTitle}</span>
+                            <span>${stepTitle} - FIXED</span>
                             <span class="toggle-icon">▼</span>
                         </div>
                         <div class="assistant-step-content" style="max-height: 1000px;">

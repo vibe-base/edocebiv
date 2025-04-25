@@ -5,6 +5,9 @@ from . import chat_reasoning
 from . import preview_proxy
 
 urlpatterns = [
+    # Test URL
+    path('test/', views.test_view, name='test_view'),
+
     # Profile URLs
     path('profile/', views.profile_view, name='profile_view'),
     path('save_preferences/', views.save_preferences, name='save_preferences'),

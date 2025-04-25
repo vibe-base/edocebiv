@@ -706,11 +706,7 @@ class SimpleReasoning:
                     "max_tokens": 4000
                 }
 
-                # Explicitly set tool_choice to "none" to ensure no tools are used
-                # This is a special value that tells the API not to use tools
-                payload["tool_choice"] = "none"
-
-                # Do not include tools in the payload at all
+                # Do not include tools or tool_choice in the payload at all
                 use_tools = False
                 force_tool = False
             else:
@@ -863,8 +859,7 @@ class SimpleReasoning:
                             "model": "gpt-4o",
                             "messages": follow_up_messages,
                             "temperature": 0.2,
-                            "max_tokens": 4000,
-                            "tool_choice": "none"  # Explicitly disable tools
+                            "max_tokens": 4000
                         }
                     else:
                         # For all other steps, include tools

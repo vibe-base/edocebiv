@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST, require_http_methods
+from django.views.generic import TemplateView
 import os
 import shutil
 import json
@@ -13,6 +14,10 @@ import requests
 from .models import Project, UserProfile, ChatMessage
 from .forms import ProjectForm, UserProfileForm
 from .docker_utils import docker_manager
+
+def test_view(request):
+    """Simple test view to verify template rendering."""
+    return render(request, 'users/test.html')
 
 logger = logging.getLogger(__name__)
 
