@@ -539,55 +539,18 @@ def file_rename(request, pk):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
-@login_required
-@require_POST
-@csrf_exempt
-def chat_with_openai(request, pk):
-    """Send a message to OpenAI API and get a response."""
+def chat_with_openai_internal(
+    request, project, user_profile, message,
+    current_file, current_file_content,
+    user_chat_message, recent_messages
+):
+    """
+    Internal function for chatting with OpenAI.
+
+    This function is extracted from the chat_with_openai view to be reusable
+    by other components like the reasoning integration.
+    """
     try:
-        # Get the project and user profile
-        project = get_object_or_404(Project, pk=pk, user=request.user)
-        user_profile = UserProfile.objects.get(user=request.user)
-
-        # Check if the user has an OpenAI API key
-        if not user_profile.openai_api_key:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'No OpenAI API key found. Please add your API key in your profile settings.'
-            }, status=400)
-
-        # Parse the request body
-        data = json.loads(request.body)
-        message = data.get('message')
-
-        if not message:
-            return JsonResponse({
-                'status': 'error',
-                'message': 'Message is required'
-            }, status=400)
-
-        # Save the user message to the database
-        user_chat_message = ChatMessage.objects.create(
-            project=project,
-            user=request.user,
-            role='user',
-            content=message
-        )
-
-        # Get the current file content if provided
-        current_file = data.get('current_file')
-        current_file_content = data.get('current_file_content')
-
-        # Get the last 10 messages for this project (excluding the one we just created)
-        recent_messages = ChatMessage.objects.filter(
-            project=project
-        ).exclude(
-            id=user_chat_message.id
-        ).order_by('-timestamp')[:9]  # Get 9 to make room for the new message
-
-        # Reverse the order to have oldest first
-        recent_messages = list(reversed(recent_messages))
-
         # Create the MCP instance
         from .file_operations import FileOperations
         mcp = FileOperations(project, request.user)
@@ -732,12 +695,77 @@ Provide concise, helpful responses focused on coding assistance.
             ]
         })
 
+    except Exception as e:
+        logger.exception(f"Error in chat with OpenAI: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+@csrf_exempt
+def chat_with_openai(request, pk):
+    """Send a message to OpenAI API and get a response."""
+    try:
+        # Get the project and user profile
+        project = get_object_or_404(Project, pk=pk, user=request.user)
+        user_profile = UserProfile.objects.get(user=request.user)
+
+        # Check if the user has an OpenAI API key
+        if not user_profile.openai_api_key:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'No OpenAI API key found. Please add your API key in your profile settings.'
+            }, status=400)
+
+        # Parse the request body
+        data = json.loads(request.body)
+        message = data.get('message')
+
+        if not message:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Message is required'
+            }, status=400)
+
+        # Save the user message to the database
+        user_chat_message = ChatMessage.objects.create(
+            project=project,
+            user=request.user,
+            role='user',
+            content=message
+        )
+
+        # Get the current file content if provided
+        current_file = data.get('current_file')
+        current_file_content = data.get('current_file_content')
+
+        # Get the last 10 messages for this project (excluding the one we just created)
+        recent_messages = ChatMessage.objects.filter(
+            project=project
+        ).exclude(
+            id=user_chat_message.id
+        ).order_by('-timestamp')[:9]  # Get 9 to make room for the new message
+
+        # Reverse the order to have oldest first
+        recent_messages = list(reversed(recent_messages))
+
+        # Call the internal function
+        return chat_with_openai_internal(
+            request, project, user_profile, message,
+            current_file, current_file_content,
+            user_chat_message, recent_messages
+        )
+
     except json.JSONDecodeError:
         return JsonResponse({
             'status': 'error',
             'message': 'Invalid JSON in request body'
         }, status=400)
     except Exception as e:
+        logger.exception(f"Error in chat with OpenAI view: {str(e)}")
         return JsonResponse({
             'status': 'error',
             'message': str(e)
