@@ -3119,7 +3119,13 @@
                 // Check if this was an abort error (timeout)
                 if (error.name === 'AbortError') {
                     // Show timeout message
-                    addMessage(`The request timed out. ${useReasoning ? 'Reasoning mode took too long - try again with regular chat mode.' : 'Please try again later.'}`, 'system');
+                    let timeoutMessage = 'The request timed out. ';
+                    if (useReasoning) {
+                        timeoutMessage += 'Reasoning mode took too long - try again with regular chat mode.';
+                    } else {
+                        timeoutMessage += 'Please try again later.';
+                    }
+                    addMessage(timeoutMessage, 'system');
 
                     // If we were using reasoning mode, suggest trying again without it
                     if (useReasoning) {
@@ -3250,7 +3256,8 @@
             previewToggleBtn.addEventListener('click', function(e) {
                 e.preventDefault();
 
-                if (isPreviewPanelOpen) {
+                // Check the current state and toggle it
+                if (isPreviewPanelOpen === true) {
                     closePreviewPanel();
                 } else {
                     openPreviewPanel();
