@@ -612,8 +612,11 @@ class SimpleReasoning:
             # Force tool use for certain step types
             if force_tool and len(self.tools) > 0:
                 # Force the model to use tools
+                # When forcing tool use, we need to specify "auto" for the function
+                # This tells the model to choose which function to call
                 payload["tool_choice"] = {
-                    "type": "function"
+                    "type": "function",
+                    "function": {"name": "auto"}
                 }
             else:
                 # Let the model decide when to use tools
@@ -746,8 +749,11 @@ class SimpleReasoning:
                     # Force tool use for certain step types and early rounds
                     if (force_tool and current_round <= 2) and len(self.tools) > 0:
                         # Force the model to use tools in early rounds
+                        # When forcing tool use, we need to specify "auto" for the function
+                        # This tells the model to choose which function to call
                         follow_up_payload["tool_choice"] = {
-                            "type": "function"
+                            "type": "function",
+                            "function": {"name": "auto"}
                         }
                     else:
                         # Let the model decide when to use tools
