@@ -2720,6 +2720,10 @@
                     const hasSteps = /(\n|^)(Step \d+:|^\d+[\.\)]) |(\*\*Step \d+[\*\:])/m.test(processedContent);
                     console.log("Has steps:", hasSteps);
 
+                    // Variable to store the final HTML content
+                    let finalContent = '';
+
+                    // Process the content based on its format
                     if (hasSteps) {
                         // Process as step-by-step content
                         const stepRegex = /(?:\n|^)(?:\*\*)?(?:Step \d+[\*\:]|^\d+[\.\)]) (.*?)(?=\n(?:(?:\*\*)?(?:Step \d+[\*\:]|^\d+[\.\)]) )|$)/gs;
@@ -2812,28 +2816,31 @@
                             stepHtml = stepHtml.replace(`__TOOL_RESULT_${index}__`, toolResult);
                         });
 
-                        contentDiv.innerHTML = stepHtml;
+                        finalContent = stepHtml;
                     } else if (processedContent.includes('```')) {
                         // Process content with code blocks but no steps
-                        processedContent = processCodeBlocks(processedContent);
+                        let processedWithCodeBlocks = processCodeBlocks(processedContent);
 
                         // Now put back the tool results
                         toolResultsPlaceholders.forEach((toolResult, index) => {
-                            processedContent = processedContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
+                            processedWithCodeBlocks = processedWithCodeBlocks.replace(`__TOOL_RESULT_${index}__`, toolResult);
                         });
 
-                        contentDiv.innerHTML = processedContent;
+                        finalContent = processedWithCodeBlocks;
                     } else {
                         // No code blocks or steps, just convert newlines
-                        processedContent = processedContent.replace(/\n/g, '<br>');
+                        let simpleContent = processedContent.replace(/\n/g, '<br>');
 
                         // Now put back the tool results
                         toolResultsPlaceholders.forEach((toolResult, index) => {
-                            processedContent = processedContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
+                            simpleContent = simpleContent.replace(`__TOOL_RESULT_${index}__`, toolResult);
                         });
 
-                        contentDiv.innerHTML = processedContent;
+                        finalContent = simpleContent;
                     }
+
+                    // Set the final content to the contentDiv
+                    contentDiv.innerHTML = finalContent;
                 }
             } else {
                 // For user and system messages, just convert newlines to <br> tags
