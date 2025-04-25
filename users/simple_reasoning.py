@@ -224,26 +224,63 @@ class SimpleReasoning:
         Returns:
             Result of the tool execution
         """
-        if tool_name == "read_file":
-            return self.file_ops.read_file(arguments["file_path"])
-        elif tool_name == "write_file":
-            # Check if file exists
-            read_result = self.file_ops.read_file(arguments["file_path"])
-            if read_result["status"] == "success":
-                # Update existing file
-                return self.file_ops.update_file(arguments["file_path"], arguments["content"])
+        logger.info(f"Executing tool: {tool_name} with arguments: {arguments}")
+
+        try:
+            if tool_name == "read_file":
+                file_path = arguments.get("file_path", "")
+                if not file_path:
+                    return {"status": "error", "message": "No file path provided"}
+
+                logger.info(f"Reading file: {file_path}")
+                return self.file_ops.read_file(file_path)
+
+            elif tool_name == "write_file":
+                file_path = arguments.get("file_path", "")
+                content = arguments.get("content", "")
+
+                if not file_path:
+                    return {"status": "error", "message": "No file path provided"}
+
+                # Check if file exists
+                read_result = self.file_ops.read_file(file_path)
+                if read_result["status"] == "success":
+                    # Update existing file
+                    logger.info(f"Updating file: {file_path}")
+                    return self.file_ops.update_file(file_path, content)
+                else:
+                    # Create new file
+                    logger.info(f"Creating file: {file_path}")
+                    return self.file_ops.create_file(file_path, content)
+
+            elif tool_name == "list_files":
+                directory_path = arguments.get("directory_path", "")
+                logger.info(f"Listing files in directory: {directory_path}")
+                return self.file_ops.list_files(directory_path)
+
+            elif tool_name == "run_file":
+                file_path = arguments.get("file_path", "")
+                if not file_path:
+                    return {"status": "error", "message": "No file path provided"}
+
+                logger.info(f"Running file: {file_path}")
+                return self.file_ops.run_file(file_path)
+
+            elif tool_name == "delete_file":
+                file_path = arguments.get("file_path", "")
+                if not file_path:
+                    return {"status": "error", "message": "No file path provided"}
+
+                logger.info(f"Deleting file: {file_path}")
+                return self.file_ops.delete_file(file_path)
+
             else:
-                # Create new file
-                return self.file_ops.create_file(arguments["file_path"], arguments["content"])
-        elif tool_name == "list_files":
-            directory_path = arguments.get("directory_path", "")
-            return self.file_ops.list_files(directory_path)
-        elif tool_name == "run_file":
-            return self.file_ops.run_file(arguments["file_path"])
-        elif tool_name == "delete_file":
-            return self.file_ops.delete_file(arguments["file_path"])
-        else:
-            return {"status": "error", "message": f"Unknown tool: {tool_name}"}
+                logger.warning(f"Unknown tool: {tool_name}")
+                return {"status": "error", "message": f"Unknown tool: {tool_name}"}
+
+        except Exception as e:
+            logger.exception(f"Error executing tool {tool_name}: {str(e)}")
+            return {"status": "error", "message": f"Error executing tool {tool_name}: {str(e)}"}
 
     def create_session(self, title: str, description: str = "") -> ReasoningSession:
         """
@@ -388,27 +425,40 @@ class SimpleReasoning:
                     content += tool_result_text
 
                     # Add the tool call and result to the follow-up messages
-                    follow_up_messages.append({
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": [
-                            {
-                                "id": tool_call_id,
-                                "type": "function",
-                                "function": {
-                                    "name": tool_name,
-                                    "arguments": arguments_str
+                    try:
+                        # Create a proper tool call message
+                        tool_call_message = {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": tool_call_id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": tool_name,
+                                        "arguments": arguments_str
+                                    }
                                 }
-                            }
-                        ]
-                    })
+                            ]
+                        }
+                        follow_up_messages.append(tool_call_message)
 
-                    # Add the tool result to the follow-up messages
-                    follow_up_messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call_id,
-                        "content": json.dumps(result)
-                    })
+                        # Create a proper tool result message
+                        result_content = json.dumps(result)
+                        if len(result_content) > 1000:
+                            # Truncate long results to avoid token limits
+                            result_content = result_content[:1000] + "... (truncated)"
+
+                        tool_result_message = {
+                            "role": "tool",
+                            "tool_call_id": tool_call_id,
+                            "content": result_content
+                        }
+                        follow_up_messages.append(tool_result_message)
+
+                        logger.info(f"Added tool call and result to follow-up messages: {tool_name}")
+                    except Exception as e:
+                        logger.exception(f"Error adding tool call to follow-up messages: {str(e)}")
 
                 # Make a follow-up request to process the tool results
                 follow_up_payload = {
