@@ -2723,7 +2723,7 @@
                     if (hasSteps) {
                         // Process as step-by-step content
                         finalContent = processStepByStepContent(processedContent, toolResultsPlaceholders);
-                    } else if (processedContent.includes('```')) {
+                    } else if (processedContent.includes('`' + '`' + '`')) {    
                         // Process content with code blocks but no steps
                         let processedWithCodeBlocks = processCodeBlocks(processedContent);
 
