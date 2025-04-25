@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 {% load socialaccount %}
+{% load i18n %}
+{% load account %}
 
 {% block title %}Sign Up - Edocebiv{% endblock %}
 
@@ -12,12 +14,42 @@
             </div>
             <div class="card-body">
                 <div class="text-center mb-4">
-                    <p class="mb-4">Please sign up with your Google account to access Edocebiv.</p>
+                    <p class="mb-4">Sign up with your Google account for the fastest way to get started.</p>
                     <a href="{% provider_login_url 'google' %}" class="btn btn-danger btn-lg">
                         <i class="bi bi-google me-2"></i>
                         Sign up with Google
                     </a>
                 </div>
+
+                <hr class="my-4">
+                <h5 class="text-center mb-3">Or sign up with email</h5>
+
+                <form class="signup" id="signup_form" method="post" action="{% url 'account_signup' %}">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="id_email" class="form-label">Email address</label>
+                        <input type="email" name="email" placeholder="Email address" class="form-control" required id="id_email">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_password1" class="form-label">Password</label>
+                        <input type="password" name="password1" placeholder="Password" class="form-control" required id="id_password1">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_password2" class="form-label">Confirm Password</label>
+                        <input type="password" name="password2" placeholder="Confirm Password" class="form-control" required id="id_password2">
+                    </div>
+
+                    {% if redirect_field_value %}
+                    <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
+                    {% endif %}
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Sign Up</button>
+                    </div>
+                </form>
 
                 {% if messages %}
                 <div class="mt-4">

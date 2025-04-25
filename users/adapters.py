@@ -7,6 +7,26 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+class StandardAccountAdapter(DefaultAccountAdapter):
+    """
+    Standard adapter that allows both direct email signup and login,
+    as well as social login.
+    """
+
+    def is_open_for_signup(self, request):
+        """
+        Allow standard signup
+        """
+        return True
+
+    def login(self, request, user):
+        """
+        Allow both direct and social login
+        """
+        logger.info(f"Login successful for user: {user.email}")
+        return super().login(request, user)
+
+# Keep the old adapter for reference or if we need to switch back
 class NoNewUsersAccountAdapter(DefaultAccountAdapter):
     """
     Adapter to disable direct email signup and login.
