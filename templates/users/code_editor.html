@@ -2253,7 +2253,8 @@
             }
 
             // Check if reasoning mode is enabled
-            const useReasoning = document.getElementById('reasoning-mode-toggle').checked;
+            const reasoningCheckbox = document.getElementById('reasoning-mode-checkbox');
+            const useReasoning = reasoningCheckbox ? reasoningCheckbox.checked : false;
 
             // Choose the appropriate endpoint
             const endpoint = useReasoning
@@ -2384,7 +2385,10 @@
                     // If we were using reasoning mode, suggest trying again without it
                     if (useReasoning) {
                         // Turn off reasoning mode
-                        document.getElementById('reasoning-mode-toggle').checked = false;
+                        const reasoningCheckbox = document.getElementById('reasoning-mode-checkbox');
+                        if (reasoningCheckbox) {
+                            reasoningCheckbox.checked = false;
+                        }
 
                         // Add a suggestion to try again
                         addMessage("I've turned off reasoning mode. Please try sending your message again.", 'system');
