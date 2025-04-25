@@ -164,6 +164,51 @@
         opacity: 1;
     }
 
+    .chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        background-color: var(--editor-widget-bg);
+        border-bottom: 1px solid var(--editor-widget-border);
+    }
+
+    .chat-message.system {
+        background-color: rgba(0, 123, 255, 0.1);
+    }
+
+    .chat-message.system .chat-message-sender {
+        color: #007bff;
+    }
+
+    .chat-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+    }
+
+    .chat-header h3 i {
+        margin-right: 8px;
+    }
+
+    .chat-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .form-check-input {
+        cursor: pointer;
+    }
+
+    .form-check-label {
+        font-size: 12px;
+        color: var(--editor-text);
+        cursor: pointer;
+    }
+
     .editor-terminal-container {
         flex: 1;
         display: flex;
@@ -1064,9 +1109,17 @@
         <div id="chat-panel" class="chat-panel collapsed">
             <div class="chat-header">
                 <h3><i class="bi bi-robot"></i> AI Assistant</h3>
-                <button id="chat-close-btn" class="editor-header-button" title="Close">
-                    <i class="bi bi-x"></i>
-                </button>
+                <div class="chat-header-actions">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="reasoning-mode-toggle">
+                        <label class="form-check-label" for="reasoning-mode-toggle" title="Enable AI reasoning for complex tasks">
+                            Reasoning Mode
+                        </label>
+                    </div>
+                    <button id="chat-close-btn" class="editor-header-button" title="Close">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
             </div>
 
             <div id="chat-messages" class="chat-messages">
@@ -1544,7 +1597,16 @@
 
             const senderDiv = document.createElement('div');
             senderDiv.className = 'chat-message-sender';
-            senderDiv.textContent = sender === 'user' ? 'You' : 'AI Assistant';
+
+            // Set the sender name based on the role
+            if (sender === 'user') {
+                senderDiv.textContent = 'You';
+            } else if (sender === 'system') {
+                senderDiv.textContent = 'System';
+                messageDiv.classList.add('system-message');
+            } else {
+                senderDiv.textContent = 'AI Assistant';
+            }
 
             const contentDiv = document.createElement('div');
             contentDiv.className = 'chat-message-content';
@@ -1656,8 +1718,21 @@
                 }
             }
 
+            // Check if reasoning mode is enabled
+            const useReasoning = document.getElementById('reasoning-mode-toggle').checked;
+
+            // Choose the appropriate endpoint
+            const endpoint = useReasoning
+                ? '{% url "chat_with_reasoning" project.pk %}'
+                : '{% url "chat_with_openai" project.pk %}';
+
+            if (useReasoning) {
+                console.log("Using reasoning mode for this message");
+                addMessage("🧠 Using AI reasoning mode for this complex task. This may take a bit longer...", "system");
+            }
+
             // Send request to backend
-            fetch('{% url "chat_with_openai" project.pk %}', {
+            fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1666,7 +1741,8 @@
                 body: JSON.stringify({
                     message: message,
                     current_file: currentFile,
-                    current_file_content: currentFileContent
+                    current_file_content: currentFileContent,
+                    use_reasoning: useReasoning
                 })
             })
             .then(response => response.json())

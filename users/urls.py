@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from . import reasoning_views
+from . import chat_reasoning
 
 urlpatterns = [
     # Profile URLs
@@ -30,6 +31,7 @@ urlpatterns = [
     # Chat API URLs
     path('projects/<int:pk>/chat/', views.chat_with_openai, name='chat_with_openai'),
     path('projects/<int:pk>/chat/history/', views.chat_history, name='chat_history'),
+    path('projects/<int:pk>/chat/reasoning/', chat_reasoning.chat_with_reasoning, name='chat_with_reasoning'),
 
     # File tree API URL
     path('projects/<int:pk>/file-tree/', views.get_file_tree, name='get_file_tree'),
