@@ -1,0 +1,69 @@
+/* Custom CSS for Edocebiv */
+
+/* Custom styles for the reasoning dashboard */
+.reasoning-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.reasoning-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.step-badge {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+}
+
+/* Custom styles for the code editor */
+.editor-container {
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* Custom styles for the terminal */
+.terminal-output {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    background-color: #1e1e1e;
+    color: #f0f0f0;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+/* Custom styles for AI reasoning steps */
+.reasoning-step {
+    border-left: 3px solid #007bff;
+    padding-left: 15px;
+    margin-bottom: 20px;
+}
+
+.reasoning-step.planning {
+    border-left-color: #6610f2;
+}
+
+.reasoning-step.analysis {
+    border-left-color: #6f42c1;
+}
+
+.reasoning-step.code-generation {
+    border-left-color: #007bff;
+}
+
+.reasoning-step.code-execution {
+    border-left-color: #28a745;
+}
+
+.reasoning-step.testing {
+    border-left-color: #fd7e14;
+}
+
+.reasoning-step.refinement {
+    border-left-color: #dc3545;
+}
+
+.reasoning-step.conclusion {
+    border-left-color: #20c997;
+}
