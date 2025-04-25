@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Edocebiv - Modern Development Platform with Docker & AI Integration{% endblock %}
+{% block title %}Edocebiv - The Ultimate Vibecode Platform for Modern Development{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -124,8 +124,9 @@
 <!-- Hero Section -->
 <div class="hero-section text-center text-white">
     <div class="container hero-content">
-        <h1 class="hero-title">Welcome to Edocebiv</h1>
-        <p class="hero-subtitle">The modern platform for developing, deploying, and managing your projects with Docker integration and powerful code editing tools.</p>
+        <h1 class="hero-title">Welcome to Edocebiv Vibecode</h1>
+        <p class="hero-subtitle">The modern vibecode platform for developing, deploying, and managing your projects with Docker integration and powerful code editing tools.</p>
+        <p class="text-white-50 mb-4">Experience the future of coding with our vibecode technology that streamlines development workflows and enhances collaboration.</p>
         {% if not user.is_authenticated %}
             <a href="{% url 'account_signup' %}" class="btn btn-lg btn-light">Get Started</a>
         {% else %}
@@ -175,8 +176,12 @@
     <div class="container feature-section">
         <div class="row text-center mb-5">
             <div class="col-md-12">
-                <h2 class="mb-4">Powerful Development Tools</h2>
-                <p class="lead text-muted">Everything you need to build, deploy, and manage your projects</p>
+                <h2 class="mb-4">Powerful Vibecode Development Tools</h2>
+                <p class="lead text-muted">Everything you need to build, deploy, and manage your projects with our innovative vibecode platform</p>
+                <div class="mt-4 mb-5">
+                    <p class="text-muted">Vibecode is our revolutionary approach to cloud development that combines the best aspects of traditional IDEs with the flexibility of cloud computing. With vibecode technology, you can code from anywhere, collaborate in real-time, and deploy instantly.</p>
+                    <p class="text-muted">Our vibecode platform is designed for developers who value efficiency, collaboration, and modern tooling. Whether you're a solo developer or part of a team, vibecode helps you focus on what matters most: writing great code.</p>
+                </div>
             </div>
         </div>
 
@@ -185,8 +190,9 @@
                 <div class="card feature-card h-100">
                     <div class="card-body text-center p-4">
                         <i class="bi bi-code-square feature-icon"></i>
-                        <h4>Visual Studio-like Editor</h4>
-                        <p class="text-muted">Edit your code with a powerful, familiar interface that includes syntax highlighting and file management.</p>
+                        <h4>Vibecode Editor</h4>
+                        <p class="text-muted">Edit your code with our vibecode editor featuring a Visual Studio-like interface with syntax highlighting, intelligent code completion, and integrated file management.</p>
+                        <p class="text-muted small">The vibecode editor adapts to your coding style and preferences, making development faster and more intuitive than traditional editors.</p>
                     </div>
                 </div>
             </div>
@@ -194,8 +200,9 @@
                 <div class="card feature-card h-100">
                     <div class="card-body text-center p-4">
                         <i class="bi bi-box feature-icon"></i>
-                        <h4>Docker Integration</h4>
-                        <p class="text-muted">Easily create, start, and manage Docker containers for each of your projects.</p>
+                        <h4>Vibecode Docker Integration</h4>
+                        <p class="text-muted">Our vibecode platform seamlessly integrates with Docker, allowing you to easily create, start, and manage containers for each of your projects.</p>
+                        <p class="text-muted small">The vibecode Docker integration ensures consistent development environments and simplified deployment processes across your entire team.</p>
                     </div>
                 </div>
             </div>
@@ -203,10 +210,39 @@
                 <div class="card feature-card h-100">
                     <div class="card-body text-center p-4">
                         <i class="bi bi-key feature-icon"></i>
-                        <h4>API Key Management</h4>
-                        <p class="text-muted">Securely store and manage your OpenAI API keys for each project.</p>
+                        <h4>Vibecode AI Integration</h4>
+                        <p class="text-muted">The vibecode platform includes secure OpenAI API key management, allowing you to harness the power of AI in your development workflow.</p>
+                        <p class="text-muted small">With vibecode's AI integration, you can generate code, get intelligent suggestions, and automate repetitive tasks to boost your productivity.</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vibecode Technology Section -->
+    <div class="container mb-5">
+        <div class="row py-5">
+            <div class="col-md-6">
+                <h2 class="mb-4">Why Choose Vibecode?</h2>
+                <p class="text-muted">Vibecode is more than just a development platform—it's a complete ecosystem designed to make coding more efficient, collaborative, and enjoyable.</p>
+                <ul class="text-muted">
+                    <li class="mb-2"><strong>Seamless Integration:</strong> Vibecode connects all your development tools in one unified platform.</li>
+                    <li class="mb-2"><strong>Real-time Collaboration:</strong> Work with your team in real-time, seeing changes as they happen.</li>
+                    <li class="mb-2"><strong>Containerized Environments:</strong> Every project runs in its own isolated container for consistency and security.</li>
+                    <li class="mb-2"><strong>AI-Powered Assistance:</strong> Get intelligent code suggestions and automate repetitive tasks.</li>
+                    <li class="mb-2"><strong>Cross-Platform Compatibility:</strong> Access your vibecode projects from any device with a web browser.</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h2 class="mb-4">Vibecode for Teams</h2>
+                <p class="text-muted">Vibecode shines in team environments, providing tools that enhance collaboration and streamline workflows:</p>
+                <ul class="text-muted">
+                    <li class="mb-2"><strong>Shared Workspaces:</strong> Create dedicated environments for team projects.</li>
+                    <li class="mb-2"><strong>Consistent Environments:</strong> Eliminate "works on my machine" problems with containerization.</li>
+                    <li class="mb-2"><strong>Integrated Version Control:</strong> Seamlessly work with Git repositories.</li>
+                    <li class="mb-2"><strong>Deployment Pipelines:</strong> Deploy directly from your vibecode environment.</li>
+                    <li class="mb-2"><strong>Access Controls:</strong> Manage permissions and roles for team members.</li>
+                </ul>
             </div>
         </div>
     </div>
@@ -214,9 +250,10 @@
     <!-- CTA Section -->
     <div class="container">
         <div class="cta-section text-center">
-            <h2 class="mb-4">Ready to get started?</h2>
-            <p class="lead text-muted mb-4">Join thousands of developers who are already using Edocebiv to build amazing projects.</p>
-            <a href="{% url 'account_signup' %}" class="btn btn-lg btn-primary">Create an Account</a>
+            <h2 class="mb-4">Ready to experience Vibecode?</h2>
+            <p class="lead text-muted mb-4">Join thousands of developers who are already using Edocebiv's vibecode platform to build amazing projects faster and more efficiently.</p>
+            <p class="text-muted mb-4">Our vibecode technology is revolutionizing how developers work, collaborate, and deploy their applications. Start your vibecode journey today!</p>
+            <a href="{% url 'account_signup' %}" class="btn btn-lg btn-primary">Create Your Vibecode Account</a>
         </div>
     </div>
 {% endif %}
