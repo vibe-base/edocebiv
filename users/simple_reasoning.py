@@ -406,7 +406,7 @@ class SimpleReasoning:
             assistant_message = response_data['choices'][0]['message']
 
             # Initialize variables
-            content = assistant_message.get('content', '')
+            content = assistant_message.get('content', '') or ''  # Ensure content is never None
             tool_calls = assistant_message.get('tool_calls', [])
             tool_results = []
 
