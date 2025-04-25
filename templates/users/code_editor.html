@@ -4065,7 +4065,9 @@
             const projectId = {{ project.id }};
 
             // Check if the container is running
-            {% if container_running %}
+            const containerRunning = {% if container_running %}true{% else %}false{% endif %};
+
+            if (containerRunning) {
                 // Set the iframe src to the preview URL
                 const previewUrl = `/users/projects/${projectId}/preview/`;
 
@@ -4093,7 +4095,7 @@
 
                     console.error('Failed to load preview');
                 };
-            {% else %}
+            } else {
                 // Hide loading indicator
                 previewLoading.style.display = 'none';
 
@@ -4102,7 +4104,7 @@
                 previewErrorMessage.textContent = 'Container is not running. Start the container to preview your web application.';
 
                 console.error('Container is not running');
-            {% endif %}
+            }
         }
 
         // Listen for preview toggle button click
