@@ -40,13 +40,15 @@ IMPORTANT: You MUST format your response as a JSON object with the following str
     "conclusion": "Brief conclusion or summary"
 }
 
+IMPORTANT: In this planning step, DO NOT actually execute any tools or implement any code. Your job is ONLY to create a plan that will be executed in later steps. DO NOT use any tool calls in this step.
+
 For each step, specify:
 1. A clear title that summarizes the step
 2. A detailed description of what needs to be done
 3. What files need to be examined or modified
 4. What tools might be needed (file operations, code execution, etc.)
 
-Be thorough but concise. Focus on creating a practical, step-by-step plan that can be easily followed.
+Be thorough but concise. Focus on creating a practical, step-by-step plan that will be executed in later steps.
 """,
 
     "analysis": """You are an expert code analyst specialized in understanding codebases.
@@ -96,6 +98,12 @@ IMPORTANT: You MUST format your response as a JSON object with the following str
     "next_steps": "Suggested next steps after implementation"
 }
 
+IMPORTANT: In this code generation step, you SHOULD actually implement the code by using the appropriate tools:
+- Use read_file to examine existing files
+- Use write_file to create or update files
+- Use list_files to explore the directory structure
+- Use other tools as needed to complete the implementation
+
 Your code should be:
 1. Well-structured and organized
 2. Properly commented
@@ -123,6 +131,11 @@ IMPORTANT: You MUST format your response as a JSON object with the following str
     "results": "Interpretation of execution results",
     "recommendations": "Recommendations based on the results"
 }
+
+IMPORTANT: In this code execution step, you SHOULD actually run the code by using the appropriate tools:
+- Use run_file to execute the code files
+- Use read_file to examine the content of files if needed
+- Use write_file to make any necessary adjustments to the code
 
 Be precise and focus on practical execution steps.
 """,
@@ -154,6 +167,12 @@ IMPORTANT: You MUST format your response as a JSON object with the following str
     "recommendations": "Overall recommendations based on testing"
 }
 
+IMPORTANT: In this testing step, you SHOULD actually create and run tests by using the appropriate tools:
+- Use write_file to create test files
+- Use run_file to execute the tests
+- Use read_file to examine the content of files if needed
+- Use other tools as needed to complete the testing
+
 Be thorough and methodical in your approach to testing.
 """,
 
@@ -177,7 +196,13 @@ IMPORTANT: You MUST format your response as a JSON object with the following str
     "future_recommendations": "Suggestions for future improvements"
 }
 
-Provide specific, actionable improvements.
+IMPORTANT: In this refinement step, you SHOULD actually implement the improvements by using the appropriate tools:
+- Use read_file to examine the content of files
+- Use write_file to update files with improvements
+- Use generate_diff and apply_patch for more complex changes
+- Use run_file to verify that the improvements work correctly
+
+Provide specific, actionable improvements and implement them.
 """,
 
     "conclusion": """You are an expert in summarizing development work.
@@ -197,6 +222,8 @@ IMPORTANT: You MUST format your response as a JSON object with the following str
     "future_work": ["List", "of", "suggested", "future", "work"],
     "conclusion": "Final concluding thoughts"
 }
+
+IMPORTANT: In this conclusion step, DO NOT execute any tools. Your job is ONLY to summarize what was accomplished in the previous steps.
 
 Be concise but comprehensive in your summary.
 """
@@ -413,13 +440,24 @@ class AIReasoning:
             MessagesPlaceholder(variable_name="agent_scratchpad")
         ])
 
+        # Select the appropriate tools based on step type
+        if step_type == "planning" or step_type == "conclusion":
+            # Planning and conclusion steps should not use tools
+            tools = []
+        elif step_type == "analysis":
+            # Analysis step should only use read_file and list_files
+            tools = [tool for tool in self.tools if tool.name in ["read_file", "list_files"]]
+        else:
+            # All other steps can use all tools
+            tools = self.tools
+
         # Create the agent
-        agent = create_openai_tools_agent(llm, self.tools, prompt)
+        agent = create_openai_tools_agent(llm, tools, prompt)
 
         # Create the agent executor
         return AgentExecutor(
             agent=agent,
-            tools=self.tools,
+            tools=tools,
             verbose=True,
             handle_parsing_errors=True
         )
