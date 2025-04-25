@@ -2734,6 +2734,12 @@
             chatInput.disabled = true;
             chatSendBtn.disabled = true;
 
+            // Clear any existing reasoning progress container
+            const existingProgressContainer = document.getElementById('reasoning-progress-container');
+            if (existingProgressContainer) {
+                existingProgressContainer.remove();
+            }
+
             // Refresh the file explorer to ensure we have the latest files
             refreshFileExplorer();
 
