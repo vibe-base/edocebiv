@@ -132,13 +132,17 @@
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
-        transition: width 0.3s ease;
+        transition: all 0.3s ease;
         overflow: hidden;
+        max-width: 350px; /* Add max-width to ensure it doesn't exceed this size */
     }
 
     .chat-panel.collapsed {
         width: 0;
+        max-width: 0; /* Also set max-width to 0 when collapsed */
         border-left: none;
+        visibility: visible; /* Keep it visible for transition */
+        opacity: 1;
     }
 
     .chat-toggle {
@@ -2555,19 +2559,31 @@
             if (isAssistantWindowOpen) {
                 // Open the panel - explicitly remove the collapsed class
                 chatPanel.classList.remove('collapsed');
+                // Force a reflow
+                void chatPanel.offsetWidth;
+                // Set the width explicitly
+                chatPanel.style.width = '350px';
+                chatPanel.style.maxWidth = '350px';
+
                 const chatToggleButton = document.getElementById('chat-toggle-btn');
                 if (chatToggleButton) {
                     chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
                 }
-                console.log('Assistant window opened on load (user preference)');
+                console.log('Assistant window opened on load (user preference), width set to 350px');
             } else {
                 // Close the panel - explicitly add the collapsed class
                 chatPanel.classList.add('collapsed');
+                // Force a reflow
+                void chatPanel.offsetWidth;
+                // Set the width explicitly
+                chatPanel.style.width = '0';
+                chatPanel.style.maxWidth = '0';
+
                 const chatToggleButton = document.getElementById('chat-toggle-btn');
                 if (chatToggleButton) {
                     chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
                 }
-                console.log('Assistant window closed on load (user preference)');
+                console.log('Assistant window closed on load (user preference), width set to 0');
             }
         }
 
@@ -2623,15 +2639,27 @@
                     console.log('Chat toggle clicked. Current state:', isCurrentlyClosed ? 'closed' : 'open');
 
                     if (isCurrentlyClosed) {
-                        // Open the panel
+                        // Open the panel - force a reflow to ensure the transition works
                         chatPanel.classList.remove('collapsed');
+                        // Force a reflow
+                        void chatPanel.offsetWidth;
+                        // Set the width explicitly
+                        chatPanel.style.width = '350px';
+                        chatPanel.style.maxWidth = '350px';
                         this.innerHTML = '<i class="bi bi-chevron-right"></i>';
                         isAssistantWindowOpen = true;
+                        console.log('Opening chat panel, width set to 350px');
                     } else {
                         // Close the panel
                         chatPanel.classList.add('collapsed');
+                        // Force a reflow
+                        void chatPanel.offsetWidth;
+                        // Set the width explicitly
+                        chatPanel.style.width = '0';
+                        chatPanel.style.maxWidth = '0';
                         this.innerHTML = '<i class="bi bi-chat-dots"></i>';
                         isAssistantWindowOpen = false;
+                        console.log('Closing chat panel, width set to 0');
                     }
 
                     saveUserPreferences();
@@ -2651,6 +2679,11 @@
 
                     // Close the panel
                     chatPanel.classList.add('collapsed');
+                    // Force a reflow
+                    void chatPanel.offsetWidth;
+                    // Set the width explicitly
+                    chatPanel.style.width = '0';
+                    chatPanel.style.maxWidth = '0';
                     isAssistantWindowOpen = false;
 
                     // Update the toggle button icon
