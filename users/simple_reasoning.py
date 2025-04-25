@@ -284,13 +284,14 @@ class SimpleReasoning:
         logger.info(f"Executing tool: {tool_name} with arguments: {arguments}")
 
         try:
+            # Execute the appropriate tool
             if tool_name == "read_file":
                 file_path = arguments.get("file_path", "")
                 if not file_path:
                     return {"status": "error", "message": "No file path provided"}
 
                 logger.info(f"Reading file: {file_path}")
-                return self.file_ops.read_file(file_path)
+                result = self.file_ops.read_file(file_path)
 
             elif tool_name == "write_file":
                 file_path = arguments.get("file_path", "")
@@ -304,16 +305,16 @@ class SimpleReasoning:
                 if read_result["status"] == "success":
                     # Update existing file
                     logger.info(f"Updating file: {file_path}")
-                    return self.file_ops.update_file(file_path, content)
+                    result = self.file_ops.update_file(file_path, content)
                 else:
                     # Create new file
                     logger.info(f"Creating file: {file_path}")
-                    return self.file_ops.create_file(file_path, content)
+                    result = self.file_ops.create_file(file_path, content)
 
             elif tool_name == "list_files":
                 directory_path = arguments.get("directory_path", "")
                 logger.info(f"Listing files in directory: {directory_path}")
-                return self.file_ops.list_files(directory_path)
+                result = self.file_ops.list_files(directory_path)
 
             elif tool_name == "run_file":
                 file_path = arguments.get("file_path", "")
@@ -321,7 +322,7 @@ class SimpleReasoning:
                     return {"status": "error", "message": "No file path provided"}
 
                 logger.info(f"Running file: {file_path}")
-                return self.file_ops.run_file(file_path)
+                result = self.file_ops.run_file(file_path)
 
             elif tool_name == "delete_file":
                 file_path = arguments.get("file_path", "")
@@ -329,15 +330,58 @@ class SimpleReasoning:
                     return {"status": "error", "message": "No file path provided"}
 
                 logger.info(f"Deleting file: {file_path}")
-                return self.file_ops.delete_file(file_path)
+                result = self.file_ops.delete_file(file_path)
 
             else:
                 logger.warning(f"Unknown tool: {tool_name}")
-                return {"status": "error", "message": f"Unknown tool: {tool_name}"}
+                result = {"status": "error", "message": f"Unknown tool: {tool_name}"}
+
+            # Send a WebSocket notification about the tool execution
+            self._send_tool_notification(tool_name, result)
+
+            return result
 
         except Exception as e:
             logger.exception(f"Error executing tool {tool_name}: {str(e)}")
-            return {"status": "error", "message": f"Error executing tool {tool_name}: {str(e)}"}
+            error_result = {"status": "error", "message": f"Error executing tool {tool_name}: {str(e)}"}
+
+            # Send a WebSocket notification about the error
+            self._send_tool_notification(tool_name, error_result)
+
+            return error_result
+
+    def _send_tool_notification(self, tool_name: str, result: Dict[str, Any]) -> None:
+        """
+        Send a WebSocket notification about a tool execution.
+
+        Args:
+            tool_name: The name of the tool that was executed
+            result: The result of the tool execution
+        """
+        try:
+            # Import here to avoid circular imports
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+
+            # Get the channel layer
+            channel_layer = get_channel_layer()
+
+            # Get the project ID
+            project_id = self.project.id
+
+            # Send the notification to the group
+            async_to_sync(channel_layer.group_send)(
+                f"tools_{project_id}",
+                {
+                    "type": "tool_executed",
+                    "tool_name": tool_name,
+                    "result": result
+                }
+            )
+
+            logger.info(f"Sent WebSocket notification for tool: {tool_name}")
+        except Exception as e:
+            logger.exception(f"Error sending WebSocket notification: {str(e)}")
 
     def create_session(self, title: str, description: str = "") -> ReasoningSession:
         """

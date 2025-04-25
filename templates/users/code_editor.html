@@ -1226,6 +1226,83 @@
 
 {% block extra_js %}
 <script>
+    // WebSocket connection for real-time updates
+    let toolSocket;
+
+    function setupToolSocket() {
+        // Close any existing connection
+        if (toolSocket) {
+            toolSocket.close();
+        }
+
+        // Create a new WebSocket connection
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/tools/{{ project.pk }}/`;
+
+        toolSocket = new WebSocket(wsUrl);
+
+        // Connection opened
+        toolSocket.onopen = function(event) {
+            console.log('Tool WebSocket connection established');
+        };
+
+        // Listen for messages
+        toolSocket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            console.log('Tool WebSocket message received:', data);
+
+            if (data.type === 'tool_executed') {
+                handleToolExecution(data.tool_name, data.result);
+            }
+        };
+
+        // Connection closed
+        toolSocket.onclose = function(event) {
+            console.log('Tool WebSocket connection closed');
+            // Try to reconnect after a delay
+            setTimeout(setupToolSocket, 5000);
+        };
+
+        // Connection error
+        toolSocket.onerror = function(error) {
+            console.error('Tool WebSocket error:', error);
+        };
+    }
+
+    // Handle tool execution notifications
+    function handleToolExecution(toolName, result) {
+        console.log(`Tool executed: ${toolName}`, result);
+
+        // Refresh the file explorer for file operations
+        if (['write_file', 'create_file', 'delete_file', 'update_file'].includes(toolName)) {
+            console.log('Refreshing file explorer due to file operation');
+            refreshFileExplorer();
+
+            // If the current file was modified, refresh it
+            const currentFilePath = document.querySelector('.editor-tab.active')?.getAttribute('data-path');
+            if (currentFilePath && result.file_path === currentFilePath) {
+                console.log('Refreshing current file due to modification');
+                openFile(currentFilePath);
+            }
+
+            // If a new file was created, show a toast notification
+            if (toolName === 'create_file' || toolName === 'write_file') {
+                showToast(`File created/updated: ${result.file_path}`, 'success');
+            }
+        }
+
+        // For run_file operations, show a toast notification
+        if (toolName === 'run_file') {
+            const status = result.status === 'success' ? 'success' : 'error';
+            showToast(`File executed: ${result.file_path}`, status);
+        }
+    }
+
+    // Initialize WebSocket connection when the page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        setupToolSocket();
+    });
+
     // Toast notification function
     function showToast(message, type = 'info') {
         const toastContainer = document.getElementById('toast-container');
