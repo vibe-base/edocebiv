@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load socialaccount %}
 
 {% block title %}Edocebiv - The Ultimate Vibecode Platform for Modern Development{% endblock %}
 
@@ -253,7 +254,10 @@
             <h2 class="mb-4">Ready to experience Vibecode?</h2>
             <p class="lead text-muted mb-4">Join thousands of developers who are already using Edocebiv's vibecode platform to build amazing projects faster and more efficiently.</p>
             <p class="text-muted mb-4">Our vibecode technology is revolutionizing how developers work, collaborate, and deploy their applications. Start your vibecode journey today!</p>
-            <a href="{% url 'account_signup' %}" class="btn btn-lg btn-primary">Create Your Vibecode Account</a>
+            <a href="{% provider_login_url 'google' %}" class="btn btn-lg btn-danger">
+                <i class="bi bi-google me-2"></i>
+                Sign up with Google
+            </a>
         </div>
     </div>
 {% endif %}

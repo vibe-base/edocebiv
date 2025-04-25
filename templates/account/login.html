@@ -12,60 +12,22 @@
             </div>
             <div class="card-body">
                 <div class="text-center mb-4">
-                    <a href="{% provider_login_url 'google' %}" class="btn btn-danger">
+                    <p class="mb-4">Please sign in with your Google account to access Edocebiv.</p>
+                    <a href="{% provider_login_url 'google' %}" class="btn btn-danger btn-lg">
                         <i class="bi bi-google me-2"></i>
                         Sign in with Google
                     </a>
                 </div>
 
-                <div class="text-center my-3">
-                    <span class="divider-text">OR</span>
-                </div>
-
-                <form method="post" action="{% url 'account_login' %}">
-                    {% csrf_token %}
-
-                    {% if form.non_field_errors %}
-                        <div class="alert alert-danger">
-                            {% for error in form.non_field_errors %}
-                                {{ error }}
-                            {% endfor %}
+                {% if messages %}
+                <div class="mt-4">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">
+                            {{ message }}
                         </div>
-                    {% endif %}
-
-                    <div class="mb-3">
-                        <label for="id_login" class="form-label">Email:</label>
-                        <input type="email" name="login" class="form-control {% if form.login.errors %}is-invalid{% endif %}" id="id_login" required>
-                        {% if form.login.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.login.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="id_password" class="form-label">Password:</label>
-                        <input type="password" name="password" class="form-control {% if form.password.errors %}is-invalid{% endif %}" id="id_password" required>
-                        {% if form.password.errors %}
-                            <div class="invalid-feedback">
-                                {% for error in form.password.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" name="remember" class="form-check-input" id="id_remember">
-                        <label class="form-check-label" for="id_remember">Remember Me</label>
-                    </div>
-
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Login</button>
-                    </div>
-                </form>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
             <div class="card-footer text-center">
                 <a href="{% url 'account_reset_password' %}">Forgot Password?</a>
