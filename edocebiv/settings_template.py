@@ -18,7 +18,20 @@ DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'edocebiv.com']
 
 # CSRF settings
-CSRF_TRUSTED_ORIGINS = ['https://edocebiv.com', 'http://localhost:8000', 'http://127.0.0.1:8000']
+CSRF_TRUSTED_ORIGINS = [
+    'https://edocebiv.com',
+    'http://edocebiv.com',
+    'wss://edocebiv.com',
+    'ws://edocebiv.com',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'http://localhost:8031',
+    'http://127.0.0.1:8031',
+    'ws://localhost:8000',
+    'ws://127.0.0.1:8000',
+    'ws://localhost:8031',
+    'ws://127.0.0.1:8031',
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -35,6 +48,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+    'channels',  # Django Channels for WebSockets
 
     # Local apps
     'users',
@@ -67,11 +81,23 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
             ],
+            'debug': True,  # Enable template debugging
         },
     },
 ]
 
 WSGI_APPLICATION = 'edocebiv.wsgi.application'
+ASGI_APPLICATION = 'edocebiv.asgi.application'
+
+# Channels settings
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
 
 # Database
 DATABASES = {
@@ -125,12 +151,16 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 # django-allauth settings
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_AUTHENTICATION_METHOD = 'email'  # Still needed for backend, but we'll disable the form
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_EMAIL_VERIFICATION = 'none'  # Set to 'mandatory' in production
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'  # Use HTTPS for OAuth callbacks
+
+# Disable standard login/signup
+SOCIALACCOUNT_AUTO_SIGNUP = True  # Auto-signup after successful social login
+ACCOUNT_ADAPTER = 'users.adapters.NoNewUsersAccountAdapter'  # Custom adapter to disable direct signups
 
 # Provider specific settings
 SOCIALACCOUNT_PROVIDERS = {
@@ -153,3 +183,6 @@ SOCIALACCOUNT_PROVIDERS = {
 # Login/Logout URLs
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
+
+# Debug template loading
+DEBUG_TEMPLATE_LOADING = True
