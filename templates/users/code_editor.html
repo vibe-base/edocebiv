@@ -2051,7 +2051,7 @@
         const terminalArea = document.getElementById('terminal-area');
         const terminalHeight = parseInt(terminalArea.style.height || '150', 10);
 
-        // Save states to sessionStorage
+        // Save states to sessionStorage for immediate use
         sessionStorage.setItem('chatPanelState', JSON.stringify({
             isOpen: isAssistantWindowOpen,
             width: chatPanelWidth
@@ -2061,25 +2061,130 @@
             height: terminalHeight
         }));
 
-        console.log('Panel states saved:', {
+        console.log('Panel states saved to sessionStorage:', {
             chatPanel: { isOpen: isAssistantWindowOpen, width: chatPanelWidth },
             terminal: { height: terminalHeight }
+        });
+
+        // Also save to backend for persistence across sessions
+        saveUserPreferencesToBackend(isAssistantWindowOpen, null, chatPanelWidth, terminalHeight);
+    }
+
+    // Save user preferences to backend
+    function saveUserPreferencesToBackend(isAssistantWindowOpen, isReasoningModeOn, chatPanelWidth, terminalHeight) {
+        // Try to get CSRF token from form first
+        let csrfToken = null;
+        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+
+        if (csrfInput) {
+            // Get token from form if available
+            csrfToken = csrfInput.value;
+        } else {
+            // Fall back to cookie if form input not found
+            csrfToken = getCsrfToken();
+        }
+
+        // Check if we have a token
+        if (!csrfToken) {
+            console.error('Could not find CSRF token');
+            return;
+        }
+
+        // Prepare the data to send
+        const data = new URLSearchParams();
+
+        // Only include parameters that are provided
+        if (isAssistantWindowOpen !== null && isAssistantWindowOpen !== undefined) {
+            data.append('is_assistant_window_open', isAssistantWindowOpen);
+        }
+
+        if (isReasoningModeOn !== null && isReasoningModeOn !== undefined) {
+            data.append('is_reasoning_mode_on', isReasoningModeOn);
+        }
+
+        if (chatPanelWidth !== null && chatPanelWidth !== undefined) {
+            data.append('chat_panel_width', chatPanelWidth);
+        }
+
+        if (terminalHeight !== null && terminalHeight !== undefined) {
+            data.append('terminal_height', terminalHeight);
+        }
+
+        console.log('Saving user preferences to backend:', Object.fromEntries(data));
+
+        fetch('/users/save_preferences/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: data
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Preferences saved to backend:', data);
+        })
+        .catch(error => {
+            console.error('Error saving preferences to backend:', error);
         });
     }
 
     // Restore panel states
     function restorePanelStates() {
-        // Restore chat panel state
+        // First try to get states from sessionStorage (for immediate use during the current session)
         const chatPanelStateStr = sessionStorage.getItem('chatPanelState');
+        const terminalStateStr = sessionStorage.getItem('terminalState');
+
+        // Get elements
+        const chatPanel = document.getElementById('chat-panel');
+        const terminalArea = document.getElementById('terminal-area');
+
+        // Get backend values (these will be used if sessionStorage doesn't have values)
+        const backendChatPanelWidth = {{ user_profile.chat_panel_width }};
+        const backendTerminalHeight = {{ user_profile.terminal_height }};
+        const backendIsAssistantWindowOpen = {{ user_profile.is_assistant_window_open|lower }};
+
+        // Variables to store the values we'll use
+        let chatPanelWidth = backendChatPanelWidth;
+        let isAssistantWindowOpen = backendIsAssistantWindowOpen;
+        let terminalHeight = backendTerminalHeight;
+
+        // If we have sessionStorage values, use those instead
         if (chatPanelStateStr) {
             const chatPanelState = JSON.parse(chatPanelStateStr);
-            const chatPanel = document.getElementById('chat-panel');
+            if (chatPanelState.width) {
+                chatPanelWidth = chatPanelState.width;
+            }
+            if (typeof chatPanelState.isOpen === 'boolean') {
+                isAssistantWindowOpen = chatPanelState.isOpen;
+            }
+            console.log('Chat panel state restored from sessionStorage:', chatPanelState);
+        } else {
+            console.log('Chat panel state restored from backend:', {
+                width: chatPanelWidth,
+                isOpen: isAssistantWindowOpen
+            });
+        }
 
-            if (chatPanelState.isOpen) {
+        if (terminalStateStr) {
+            const terminalState = JSON.parse(terminalStateStr);
+            if (terminalState.height) {
+                terminalHeight = terminalState.height;
+            }
+            console.log('Terminal state restored from sessionStorage:', terminalState);
+        } else {
+            console.log('Terminal state restored from backend:', {
+                height: terminalHeight
+            });
+        }
+
+        // Apply the chat panel state
+        if (chatPanel) {
+            if (isAssistantWindowOpen) {
                 chatPanel.classList.remove('collapsed');
-                chatPanel.style.width = `${chatPanelState.width}px`;
-                chatPanel.style.maxWidth = `${chatPanelState.width}px`;
-                chatPanel.style.minWidth = `${chatPanelState.width}px`;
+                chatPanel.style.width = `${chatPanelWidth}px`;
+                chatPanel.style.maxWidth = `${chatPanelWidth}px`;
+                chatPanel.style.minWidth = `${chatPanelWidth}px`;
 
                 // Update the toggle button icon
                 const chatToggleButton = document.getElementById('chat-toggle-btn');
@@ -2098,21 +2203,11 @@
                     chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
                 }
             }
-
-            console.log('Chat panel state restored:', chatPanelState);
         }
 
-        // Restore terminal state
-        const terminalStateStr = sessionStorage.getItem('terminalState');
-        if (terminalStateStr) {
-            const terminalState = JSON.parse(terminalStateStr);
-            const terminalArea = document.getElementById('terminal-area');
-
-            if (terminalState.height) {
-                terminalArea.style.height = `${terminalState.height}px`;
-            }
-
-            console.log('Terminal state restored:', terminalState);
+        // Apply the terminal state
+        if (terminalArea && terminalHeight) {
+            terminalArea.style.height = `${terminalHeight}px`;
         }
     }
 
@@ -4004,15 +4099,15 @@
 
     // User preference state management
     document.addEventListener('DOMContentLoaded', function() {
-        // First try to restore panel states from session storage
+        // First try to restore panel states from session storage or backend
         restorePanelStates();
 
-        // Initialize state from user preferences (as fallback)
+        // Initialize state from user preferences
         let isAssistantWindowOpen = {{ user_profile.is_assistant_window_open|lower }};
         let isReasoningModeOn = {{ user_profile.is_reasoning_mode_on|lower }};
-        let chatPanelWidth = 350; // Default width
+        let chatPanelWidth = {{ user_profile.chat_panel_width }}; // Get from backend
 
-        // If we have a saved chat panel width, use that instead
+        // If we have a saved chat panel width in session storage, use that instead
         const chatPanelStateStr = sessionStorage.getItem('chatPanelState');
         if (chatPanelStateStr) {
             const chatPanelState = JSON.parse(chatPanelStateStr);
@@ -4226,46 +4321,13 @@
 
         // Function to save user preferences via AJAX
         function saveUserPreferences() {
-            // Try to get CSRF token from form first
-            let csrfToken = null;
-            const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
-
-            if (csrfInput) {
-                // Get token from form if available
-                csrfToken = csrfInput.value;
-                console.log('Got CSRF token from form');
-            } else {
-                // Fall back to cookie if form input not found
-                csrfToken = getCsrfToken();
-                console.log('Got CSRF token from cookie');
-            }
-
-            // Check if we have a token
-            if (!csrfToken) {
-                console.error('Could not find CSRF token');
-                return;
-            }
-
             console.log('Saving user preferences:', {
                 isAssistantWindowOpen,
                 isReasoningModeOn
             });
 
-            fetch('/users/save_preferences/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrfToken
-                },
-                body: `is_assistant_window_open=${isAssistantWindowOpen}&is_reasoning_mode_on=${isReasoningModeOn}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Preferences saved:', data);
-            })
-            .catch(error => {
-                console.error('Error saving preferences:', error);
-            });
+            // Use the new function to save preferences to backend
+            saveUserPreferencesToBackend(isAssistantWindowOpen, isReasoningModeOn, chatPanelWidth, null);
         }
 
         // Listen for chat panel toggle button click

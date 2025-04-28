@@ -127,16 +127,30 @@ def save_preferences(request):
     is_assistant_window_open = request.POST.get('is_assistant_window_open') == 'true'
     is_reasoning_mode_on = request.POST.get('is_reasoning_mode_on') == 'true'
 
+    # Get panel states if provided
+    chat_panel_width = request.POST.get('chat_panel_width')
+    terminal_height = request.POST.get('terminal_height')
+
     # Update profile
     profile.is_assistant_window_open = is_assistant_window_open
     profile.is_reasoning_mode_on = is_reasoning_mode_on
+
+    # Update panel states if provided
+    if chat_panel_width and chat_panel_width.isdigit():
+        profile.chat_panel_width = int(chat_panel_width)
+
+    if terminal_height and terminal_height.isdigit():
+        profile.terminal_height = int(terminal_height)
+
     profile.save()
 
     return JsonResponse({
         'status': 'success',
         'message': 'Preferences saved successfully',
         'is_assistant_window_open': profile.is_assistant_window_open,
-        'is_reasoning_mode_on': profile.is_reasoning_mode_on
+        'is_reasoning_mode_on': profile.is_reasoning_mode_on,
+        'chat_panel_width': profile.chat_panel_width,
+        'terminal_height': profile.terminal_height
     })
 
 # Docker Container Management Views

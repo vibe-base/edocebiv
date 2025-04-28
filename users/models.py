@@ -10,6 +10,8 @@ class UserProfile(models.Model):
     openai_api_key = models.CharField(max_length=255, blank=True, null=True, help_text="Your OpenAI API key")
     is_assistant_window_open = models.BooleanField(default=True, help_text="Whether the assistant window is open")
     is_reasoning_mode_on = models.BooleanField(default=False, help_text="Whether reasoning mode is enabled")
+    chat_panel_width = models.IntegerField(default=350, help_text="Width of the chat panel in pixels")
+    terminal_height = models.IntegerField(default=150, help_text="Height of the terminal panel in pixels")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
