@@ -2040,8 +2040,88 @@
         }
     }
 
+    // Store panel states
+    function savePanelStates() {
+        // Get chat panel state
+        const chatPanel = document.getElementById('chat-panel');
+        const isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
+        const chatPanelWidth = parseInt(chatPanel.style.width || '350', 10);
+
+        // Get terminal panel state
+        const terminalArea = document.getElementById('terminal-area');
+        const terminalHeight = parseInt(terminalArea.style.height || '150', 10);
+
+        // Save states to sessionStorage
+        sessionStorage.setItem('chatPanelState', JSON.stringify({
+            isOpen: isAssistantWindowOpen,
+            width: chatPanelWidth
+        }));
+
+        sessionStorage.setItem('terminalState', JSON.stringify({
+            height: terminalHeight
+        }));
+
+        console.log('Panel states saved:', {
+            chatPanel: { isOpen: isAssistantWindowOpen, width: chatPanelWidth },
+            terminal: { height: terminalHeight }
+        });
+    }
+
+    // Restore panel states
+    function restorePanelStates() {
+        // Restore chat panel state
+        const chatPanelStateStr = sessionStorage.getItem('chatPanelState');
+        if (chatPanelStateStr) {
+            const chatPanelState = JSON.parse(chatPanelStateStr);
+            const chatPanel = document.getElementById('chat-panel');
+
+            if (chatPanelState.isOpen) {
+                chatPanel.classList.remove('collapsed');
+                chatPanel.style.width = `${chatPanelState.width}px`;
+                chatPanel.style.maxWidth = `${chatPanelState.width}px`;
+                chatPanel.style.minWidth = `${chatPanelState.width}px`;
+
+                // Update the toggle button icon
+                const chatToggleButton = document.getElementById('chat-toggle-btn');
+                if (chatToggleButton) {
+                    chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
+                }
+            } else {
+                chatPanel.classList.add('collapsed');
+                chatPanel.style.width = '0';
+                chatPanel.style.maxWidth = '0';
+                chatPanel.style.minWidth = '0';
+
+                // Update the toggle button icon
+                const chatToggleButton = document.getElementById('chat-toggle-btn');
+                if (chatToggleButton) {
+                    chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
+                }
+            }
+
+            console.log('Chat panel state restored:', chatPanelState);
+        }
+
+        // Restore terminal state
+        const terminalStateStr = sessionStorage.getItem('terminalState');
+        if (terminalStateStr) {
+            const terminalState = JSON.parse(terminalStateStr);
+            const terminalArea = document.getElementById('terminal-area');
+
+            if (terminalState.height) {
+                terminalArea.style.height = `${terminalState.height}px`;
+            }
+
+            console.log('Terminal state restored:', terminalState);
+        }
+    }
+
     // Open file in editor
     function openFile(path) {
+        // Save current panel states before navigating
+        savePanelStates();
+
+        // Navigate to the file
         window.location.href = "{% url 'code_editor' project.pk %}?file=" + encodeURIComponent(path);
     }
 
@@ -2142,6 +2222,9 @@
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
             document.body.style.userSelect = '';
+
+            // Save the new panel state
+            savePanelStates();
         }
 
         // Save file button
@@ -3921,10 +4004,26 @@
 
     // User preference state management
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize state from user preferences
+        // First try to restore panel states from session storage
+        restorePanelStates();
+
+        // Initialize state from user preferences (as fallback)
         let isAssistantWindowOpen = {{ user_profile.is_assistant_window_open|lower }};
         let isReasoningModeOn = {{ user_profile.is_reasoning_mode_on|lower }};
         let chatPanelWidth = 350; // Default width
+
+        // If we have a saved chat panel width, use that instead
+        const chatPanelStateStr = sessionStorage.getItem('chatPanelState');
+        if (chatPanelStateStr) {
+            const chatPanelState = JSON.parse(chatPanelStateStr);
+            if (chatPanelState.width) {
+                chatPanelWidth = chatPanelState.width;
+            }
+            // Override the assistant window state if we have it in session storage
+            if (typeof chatPanelState.isOpen === 'boolean') {
+                isAssistantWindowOpen = chatPanelState.isOpen;
+            }
+        }
 
         // Get the chat panel and reasoning mode checkbox
         const chatPanel = document.getElementById('chat-panel');
@@ -3971,6 +4070,9 @@
                 // Update the state and save preferences
                 isAssistantWindowOpen = true;
                 saveUserPreferences();
+
+                // Save panel states to session storage
+                savePanelStates();
                 console.log('Chat panel opened successfully');
 
                 // Load chat history if it exists
@@ -4018,6 +4120,9 @@
                 // Update the state and save preferences
                 isAssistantWindowOpen = false;
                 saveUserPreferences();
+
+                // Save panel states to session storage
+                savePanelStates();
                 console.log('Chat panel closed successfully');
             }, 50);
         }
@@ -4235,6 +4340,9 @@
                     chatResizeHandle.classList.remove('resizing');
                     document.body.style.cursor = '';
                     document.body.style.userSelect = '';
+
+                    // Save the new panel state
+                    savePanelStates();
                 }
             };
 
