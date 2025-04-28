@@ -321,8 +321,9 @@
         max-height: 300px;
         overflow-y: auto;
         white-space: pre-wrap;
-        color: #e0e0e0;
+        color: #ffffff; /* Brighter text color for better contrast */
         border: 1px solid rgba(255, 255, 255, 0.1);
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); /* Add subtle text shadow for better readability */
     }
 
     .reasoning-json-response {
@@ -331,7 +332,8 @@
         white-space: pre-wrap;
         font-family: monospace;
         font-size: 14px;
-        color: #e0e0e0;
+        color: #ffffff; /* Brighter text color for better contrast */
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); /* Add subtle text shadow for better readability */
     }
 
     .reasoning-error {
@@ -888,9 +890,11 @@
     }
 
     .chat-message.assistant .chat-message-content {
-        background-color: var(--sidebar-item);
-        color: var(--editor-text);
+        background-color: #3a3d41; /* Slightly lighter background for better contrast */
+        color: #ffffff; /* Bright white text for better contrast */
         border-radius: 8px 8px 8px 0;
+        text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2); /* Add subtle text shadow for better readability */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Add shadow for depth */
     }
 
     .chat-message-sender {
@@ -981,7 +985,8 @@
         font-size: 12px;
         overflow-x: auto;
         white-space: pre;
-        color: #d4d4d4; /* Light text color for dark background */
+        color: #ffffff; /* Brighter text color for better contrast */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Add shadow for depth */
     }
 
     .chat-tool-result {
@@ -995,7 +1000,8 @@
         overflow-x: auto;
         white-space: pre;
         position: relative;
-        color: #d4d4d4; /* Light text color for dark background */
+        color: #ffffff; /* Brighter text color for better contrast */
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Add shadow for depth */
     }
 
     .chat-tool-result.success {
