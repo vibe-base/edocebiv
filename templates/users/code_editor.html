@@ -134,12 +134,34 @@
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
-        transition: all 0.3s ease;
+        transition: width 0.3s ease;
         overflow: hidden;
-        max-width: 350px; /* Add max-width to ensure it doesn't exceed this size */
-        min-width: 350px; /* Add min-width to ensure it's at least this size when open */
+        max-width: 50%; /* Allow the panel to be resized up to 50% of the screen */
+        min-width: 250px; /* Minimum width for usability */
         position: relative; /* Ensure proper stacking context */
         z-index: 10; /* Ensure it's above other elements */
+    }
+
+    /* Chat resize handle */
+    .chat-resize-handle {
+        position: absolute;
+        left: -5px;
+        top: 0;
+        bottom: 0;
+        width: 10px;
+        cursor: ew-resize;
+        z-index: 20;
+    }
+
+    .chat-resize-handle:hover::before,
+    .chat-resize-handle.resizing::before {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: #007acc;
     }
 
     .chat-panel.collapsed {
@@ -1341,6 +1363,9 @@
 
         <!-- Chat panel -->
         <div id="chat-panel" class="chat-panel {% if not user_profile.is_assistant_window_open %}collapsed{% endif %}">
+            <!-- Chat resize handle -->
+            <div id="chat-resize-handle" class="chat-resize-handle"></div>
+
             <div class="chat-header">
                 <h3><i class="bi bi-robot"></i> AI Assistant</h3>
                 <div class="chat-header-actions">
@@ -3890,10 +3915,12 @@
         // Initialize state from user preferences
         let isAssistantWindowOpen = {{ user_profile.is_assistant_window_open|lower }};
         let isReasoningModeOn = {{ user_profile.is_reasoning_mode_on|lower }};
+        let chatPanelWidth = 350; // Default width
 
         // Get the chat panel and reasoning mode checkbox
         const chatPanel = document.getElementById('chat-panel');
         const reasoningModeCheckbox = document.getElementById('reasoning-mode-checkbox');
+        const chatResizeHandle = document.getElementById('chat-resize-handle');
 
         console.log('Initial assistant window state:', isAssistantWindowOpen ? 'open' : 'closed');
 
@@ -3922,9 +3949,9 @@
 
             // Set the width explicitly with a slight delay to ensure the transition works
             setTimeout(function() {
-                chatPanel.style.width = '350px';
-                chatPanel.style.maxWidth = '350px';
-                chatPanel.style.minWidth = '350px';
+                chatPanel.style.width = `${chatPanelWidth}px`;
+                chatPanel.style.maxWidth = `${chatPanelWidth}px`;
+                chatPanel.style.minWidth = `${chatPanelWidth}px`;
 
                 // Update the toggle button icon
                 const chatToggleButton = document.getElementById('chat-toggle-btn');
@@ -4000,9 +4027,9 @@
                 void chatPanel.offsetWidth;
 
                 // Set the width explicitly
-                chatPanel.style.width = '350px';
-                chatPanel.style.maxWidth = '350px';
-                chatPanel.style.minWidth = '350px';
+                chatPanel.style.width = `${chatPanelWidth}px`;
+                chatPanel.style.maxWidth = `${chatPanelWidth}px`;
+                chatPanel.style.minWidth = `${chatPanelWidth}px`;
 
                 // Update the toggle button icon
                 const chatToggleButton = document.getElementById('chat-toggle-btn');
@@ -4034,9 +4061,9 @@
                     if (chatPanel.classList.contains('collapsed')) {
                         console.log('Panel was closed again, reopening...');
                         chatPanel.classList.remove('collapsed');
-                        chatPanel.style.width = '350px';
-                        chatPanel.style.maxWidth = '350px';
-                        chatPanel.style.minWidth = '350px';
+                        chatPanel.style.width = `${chatPanelWidth}px`;
+                        chatPanel.style.maxWidth = `${chatPanelWidth}px`;
+                        chatPanel.style.minWidth = `${chatPanelWidth}px`;
                     }
                 }, 200);
             } else {
@@ -4155,6 +4182,62 @@
             reasoningModeCheckbox.addEventListener('change', function() {
                 isReasoningModeOn = this.checked;
                 saveUserPreferences();
+            });
+        }
+
+        // Chat panel resize functionality
+        if (chatResizeHandle && chatPanel) {
+            let isResizing = false;
+            let startX, startWidth;
+
+            // Function to start resizing
+            const startResize = (e) => {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = parseInt(document.defaultView.getComputedStyle(chatPanel).width, 10);
+                chatResizeHandle.classList.add('resizing');
+                document.body.style.cursor = 'ew-resize';
+                document.body.style.userSelect = 'none'; // Prevent text selection during resize
+            };
+
+            // Function to resize
+            const resize = (e) => {
+                if (!isResizing) return;
+
+                // Calculate new width (moving left decreases width, moving right increases width)
+                const newWidth = startWidth - (e.clientX - startX);
+
+                // Apply min and max constraints
+                const minWidth = 250; // Minimum width
+                const maxWidth = window.innerWidth * 0.5; // Maximum width (50% of window)
+
+                chatPanelWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+
+                // Apply the new width
+                chatPanel.style.width = `${chatPanelWidth}px`;
+                chatPanel.style.maxWidth = `${chatPanelWidth}px`;
+                chatPanel.style.minWidth = `${chatPanelWidth}px`;
+            };
+
+            // Function to stop resizing
+            const stopResize = () => {
+                if (isResizing) {
+                    isResizing = false;
+                    chatResizeHandle.classList.remove('resizing');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                }
+            };
+
+            // Add event listeners
+            chatResizeHandle.addEventListener('mousedown', startResize);
+            document.addEventListener('mousemove', resize);
+            document.addEventListener('mouseup', stopResize);
+
+            // Clean up event listeners when the page is unloaded
+            window.addEventListener('beforeunload', () => {
+                document.removeEventListener('mousemove', resize);
+                document.removeEventListener('mouseup', stopResize);
             });
         }
     });

@@ -26,6 +26,22 @@ class StandardAccountAdapter(DefaultAccountAdapter):
         logger.info(f"Login successful for user: {user.email}")
         return super().login(request, user)
 
+    def save_user(self, request, user, form, commit=True):
+        """
+        Save the user and create a profile
+        """
+        user = super().save_user(request, user, form, commit=False)
+
+        # Set username to email if not provided
+        if not user.username:
+            user.username = user.email
+
+        if commit:
+            user.save()
+
+        logger.info(f"User saved: {user.email}")
+        return user
+
 # Keep the old adapter for reference or if we need to switch back
 class NoNewUsersAccountAdapter(DefaultAccountAdapter):
     """
