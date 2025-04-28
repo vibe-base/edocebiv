@@ -131,7 +131,7 @@
         {% if not user.is_authenticated %}
 
         <div class="mt-4">
-            <a href="{% url 'account_signup' %}?nocache={% now 'U' %}" class="btn btn-lg btn-light">Get Started</a>
+            <a href="{% url 'account_signup' %}" class="btn btn-lg btn-light">Get Started</a>
         </div>
         {% else %}
             <a href="{% url 'project_list' %}" class="btn btn-lg btn-light">My Projects</a>
@@ -268,7 +268,7 @@
                     <i class="bi bi-google me-2"></i>
                     Sign up with Google
                 </a>
-                <a href="{% url 'account_signup' %}?nocache={% now 'U' %}" class="btn btn-lg btn-primary">
+                <a href="{% url 'account_signup' %}" class="btn btn-lg btn-primary">
                     <i class="bi bi-envelope me-2"></i>
                     Sign up with Email
                 </a>

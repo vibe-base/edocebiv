@@ -3,17 +3,7 @@
 
 {% block title %}Code Editor - {{ project.title }} - Edocebiv{% endblock %}
 
-<script>
-    // Force refresh if loaded from cache and no cache_bust parameter
-    (function() {
-        if (window.location.href.indexOf('cache_bust') === -1) {
-            const timestamp = new Date().getTime();
-            const separator = window.location.href.indexOf('?') !== -1 ? '&' : '?';
-            const newUrl = window.location.href + separator + 'cache_bust=' + timestamp;
-            window.location.replace(newUrl);
-        }
-    })();
-</script>
+
 
 {% block footer %}{% endblock %}
 
