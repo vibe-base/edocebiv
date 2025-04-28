@@ -2131,18 +2131,34 @@
 
     // Restore panel states
     function restorePanelStates() {
+        console.log('=== RESTORING PANEL STATES ===');
+
         // First try to get states from sessionStorage (for immediate use during the current session)
         const chatPanelStateStr = sessionStorage.getItem('chatPanelState');
         const terminalStateStr = sessionStorage.getItem('terminalState');
+
+        console.log('SessionStorage states:', {
+            chatPanelState: chatPanelStateStr ? JSON.parse(chatPanelStateStr) : null,
+            terminalState: terminalStateStr ? JSON.parse(terminalStateStr) : null
+        });
 
         // Get elements
         const chatPanel = document.getElementById('chat-panel');
         const terminalArea = document.getElementById('terminal-area');
 
+        if (!chatPanel) console.error('Chat panel element not found!');
+        if (!terminalArea) console.error('Terminal area element not found!');
+
         // Get backend values (these will be used if sessionStorage doesn't have values)
         const backendChatPanelWidth = {{ user_profile.chat_panel_width }};
         const backendTerminalHeight = {{ user_profile.terminal_height }};
         const backendIsAssistantWindowOpen = {{ user_profile.is_assistant_window_open|lower }};
+
+        console.log('Backend values:', {
+            chatPanelWidth: backendChatPanelWidth,
+            terminalHeight: backendTerminalHeight,
+            isAssistantWindowOpen: backendIsAssistantWindowOpen
+        });
 
         // Variables to store the values we'll use
         let chatPanelWidth = backendChatPanelWidth;
@@ -2179,8 +2195,11 @@
         }
 
         // Apply the chat panel state
+        console.log('Applying chat panel state:', { isAssistantWindowOpen, chatPanelWidth });
+
         if (chatPanel) {
             if (isAssistantWindowOpen) {
+                console.log('Opening chat panel with width:', chatPanelWidth);
                 chatPanel.classList.remove('collapsed');
                 chatPanel.style.width = `${chatPanelWidth}px`;
                 chatPanel.style.maxWidth = `${chatPanelWidth}px`;
@@ -2192,6 +2211,7 @@
                     chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
                 }
             } else {
+                console.log('Closing chat panel');
                 chatPanel.classList.add('collapsed');
                 chatPanel.style.width = '0';
                 chatPanel.style.maxWidth = '0';
@@ -2203,12 +2223,24 @@
                     chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
                 }
             }
+
+            // Log the actual applied state
+            console.log('Chat panel after applying state:', {
+                width: chatPanel.style.width,
+                maxWidth: chatPanel.style.maxWidth,
+                minWidth: chatPanel.style.minWidth,
+                isCollapsed: chatPanel.classList.contains('collapsed')
+            });
         }
 
         // Apply the terminal state
+        console.log('Applying terminal height:', terminalHeight);
         if (terminalArea && terminalHeight) {
             terminalArea.style.height = `${terminalHeight}px`;
+            console.log('Terminal height after applying:', terminalArea.style.height);
         }
+
+        console.log('=== PANEL STATES RESTORED ===');
     }
 
     // Open file in editor
@@ -2281,6 +2313,16 @@
         const terminalOutput = document.getElementById('terminal-output');
         const terminalArea = document.getElementById('terminal-area');
         const terminalResizeHandle = document.getElementById('terminal-resize-handle');
+
+        // Get terminal height from backend
+        const terminalHeight = {{ user_profile.terminal_height }};
+        console.log('Setting initial terminal height from backend:', terminalHeight);
+
+        // Apply terminal height
+        if (terminalArea && terminalHeight) {
+            terminalArea.style.height = `${terminalHeight}px`;
+            console.log('Applied terminal height:', terminalArea.style.height);
+        }
 
         // Terminal resize functionality
         let isResizing = false;
@@ -4099,26 +4141,40 @@
 
     // User preference state management
     document.addEventListener('DOMContentLoaded', function() {
-        // First try to restore panel states from session storage or backend
-        restorePanelStates();
+        console.log('=== DOM CONTENT LOADED ===');
 
         // Initialize state from user preferences
         let isAssistantWindowOpen = {{ user_profile.is_assistant_window_open|lower }};
         let isReasoningModeOn = {{ user_profile.is_reasoning_mode_on|lower }};
         let chatPanelWidth = {{ user_profile.chat_panel_width }}; // Get from backend
 
+        console.log('Initial state from backend:', {
+            isAssistantWindowOpen,
+            isReasoningModeOn,
+            chatPanelWidth
+        });
+
         // If we have a saved chat panel width in session storage, use that instead
         const chatPanelStateStr = sessionStorage.getItem('chatPanelState');
         if (chatPanelStateStr) {
             const chatPanelState = JSON.parse(chatPanelStateStr);
+            console.log('Found chat panel state in sessionStorage:', chatPanelState);
+
             if (chatPanelState.width) {
                 chatPanelWidth = chatPanelState.width;
+                console.log('Using width from sessionStorage:', chatPanelWidth);
             }
+
             // Override the assistant window state if we have it in session storage
             if (typeof chatPanelState.isOpen === 'boolean') {
                 isAssistantWindowOpen = chatPanelState.isOpen;
+                console.log('Using isOpen from sessionStorage:', isAssistantWindowOpen);
             }
         }
+
+        // First try to restore panel states from session storage or backend
+        // We do this after initializing the variables to ensure they're available
+        restorePanelStates();
 
         // Get the chat panel and reasoning mode checkbox
         const chatPanel = document.getElementById('chat-panel');
@@ -4226,6 +4282,7 @@
         // Use a longer timeout to ensure everything is fully loaded
         setTimeout(function() {
             console.log('Setting initial assistant window state:', isAssistantWindowOpen ? 'open' : 'closed');
+            console.log('Using chat panel width:', chatPanelWidth);
 
             // First make sure the panel is in the correct state
             if (isAssistantWindowOpen) {
@@ -4247,6 +4304,11 @@
                 }
 
                 console.log('Assistant window opened on page load');
+                console.log('Applied chat panel dimensions:', {
+                    width: chatPanel.style.width,
+                    maxWidth: chatPanel.style.maxWidth,
+                    minWidth: chatPanel.style.minWidth
+                });
 
                 // Load chat history if it exists
                 try {
