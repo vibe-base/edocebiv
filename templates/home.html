@@ -129,7 +129,7 @@
         <p class="hero-subtitle">The modern vibecode platform for developing, deploying, and managing your projects with Docker integration and powerful code editing tools.</p>
         <p class="text-white-50 mb-4">Experience the future of coding with our vibecode technology that streamlines development workflows and enhances collaboration.</p>
         {% if not user.is_authenticated %}
- 
+
         <div class="mt-4">
             <a href="{% url 'account_signup' %}" class="btn btn-lg btn-light">Get Started</a>
         </div>
@@ -258,10 +258,10 @@
             <p class="lead text-muted mb-4">Join thousands of developers who are already using Edocebiv's vibecode platform to build amazing projects faster and more efficiently.</p>
             <p class="text-muted mb-4">Our vibecode technology is revolutionizing how developers work, collaborate, and deploy their applications. Start your vibecode journey today!</p>
 
- 
+
 
             <div>
-                <a href="{% provider_login_url 'google' %}" class="btn btn-lg btn-danger">
+                <a href="{% provider_login_url 'google' process='signup' %}" class="btn btn-lg btn-danger">
                     <i class="bi bi-google me-2"></i>
                     Sign up with Google
                 </a>

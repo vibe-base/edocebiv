@@ -139,8 +139,13 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{% url 'account_signup' %}">
+                            <a class="nav-link" href="{% url 'account_signup' %}?nocache={% now 'U' %}">
                                 <i class="bi bi-person-plus"></i> Sign Up
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'account_login' %}?nocache={% now 'U' %}">
+                                <i class="bi bi-box-arrow-in-right"></i> Login
                             </a>
                         </li>
                     {% endif %}
@@ -180,7 +185,8 @@
                             <li class="mb-2"><a href="{% url 'project_list' %}" class="text-decoration-none text-white-50">My Projects</a></li>
                             <li class="mb-2"><a href="{% url 'profile_view' %}" class="text-decoration-none text-white-50">Profile</a></li>
                         {% else %}
-                            <li class="mb-2"><a href="{% url 'account_signup' %}" class="text-decoration-none text-white-50">Sign Up</a></li>
+                            <li class="mb-2"><a href="{% url 'account_signup' %}?nocache={% now 'U' %}" class="text-decoration-none text-white-50">Sign Up</a></li>
+                            <li class="mb-2"><a href="{% url 'account_login' %}?nocache={% now 'U' %}" class="text-decoration-none text-white-50">Login</a></li>
                         {% endif %}
                     </ul>
                 </div>
