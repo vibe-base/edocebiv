@@ -2040,16 +2040,64 @@
         }
     }
 
+    // Debounce function to limit how often a function can be called
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), wait);
+        };
+    }
+
     // Store panel states
     function savePanelStates() {
         // Get chat panel state
         const chatPanel = document.getElementById('chat-panel');
+        if (!chatPanel) {
+            console.error('Chat panel element not found when saving state');
+            return;
+        }
+
         const isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
-        const chatPanelWidth = parseInt(chatPanel.style.width || '350', 10);
+
+        // Use getComputedStyle to get the actual width
+        let chatPanelWidth = 350; // Default value
+        if (isAssistantWindowOpen) {
+            const computedStyle = window.getComputedStyle(chatPanel);
+            const computedWidth = parseInt(computedStyle.width, 10);
+
+            // Only use the computed width if it's a valid number and not 0
+            if (!isNaN(computedWidth) && computedWidth > 0) {
+                chatPanelWidth = computedWidth;
+            } else {
+                // Fallback to inline style if computed style is invalid
+                chatPanelWidth = parseInt(chatPanel.style.width || '350', 10);
+            }
+        }
 
         // Get terminal panel state
         const terminalArea = document.getElementById('terminal-area');
-        const terminalHeight = parseInt(terminalArea.style.height || '150', 10);
+        if (!terminalArea) {
+            console.error('Terminal area element not found when saving state');
+            return;
+        }
+
+        // Use getComputedStyle to get the actual height
+        const terminalComputedStyle = window.getComputedStyle(terminalArea);
+        let terminalHeight = parseInt(terminalComputedStyle.height, 10);
+
+        // Validate terminal height
+        if (isNaN(terminalHeight) || terminalHeight <= 0) {
+            terminalHeight = 150; // Default value
+        }
+
+        // Log the values we're about to save
+        console.log('Saving panel states with values:', {
+            isAssistantWindowOpen,
+            chatPanelWidth,
+            terminalHeight
+        });
 
         // Save states to sessionStorage for immediate use
         sessionStorage.setItem('chatPanelState', JSON.stringify({
@@ -2070,6 +2118,9 @@
         saveUserPreferencesToBackend(isAssistantWindowOpen, null, chatPanelWidth, terminalHeight);
     }
 
+    // Debounced version of savePanelStates to prevent excessive calls
+    const debouncedSavePanelStates = debounce(savePanelStates, 300);
+
     // Save user preferences to backend
     function saveUserPreferencesToBackend(isAssistantWindowOpen, isReasoningModeOn, chatPanelWidth, terminalHeight) {
         // Try to get CSRF token from form first
@@ -2087,7 +2138,26 @@
         // Check if we have a token
         if (!csrfToken) {
             console.error('Could not find CSRF token');
-            return;
+            return Promise.reject(new Error('CSRF token not found'));
+        }
+
+        // Validate the values before sending
+        if (chatPanelWidth !== null && chatPanelWidth !== undefined) {
+            // Ensure chatPanelWidth is a valid number
+            const numericWidth = parseInt(chatPanelWidth, 10);
+            if (isNaN(numericWidth) || numericWidth <= 0) {
+                console.warn('Invalid chat panel width:', chatPanelWidth, 'using default 350');
+                chatPanelWidth = 350;
+            }
+        }
+
+        if (terminalHeight !== null && terminalHeight !== undefined) {
+            // Ensure terminalHeight is a valid number
+            const numericHeight = parseInt(terminalHeight, 10);
+            if (isNaN(numericHeight) || numericHeight <= 0) {
+                console.warn('Invalid terminal height:', terminalHeight, 'using default 150');
+                terminalHeight = 150;
+            }
         }
 
         // Prepare the data to send
@@ -2112,7 +2182,7 @@
 
         console.log('Saving user preferences to backend:', Object.fromEntries(data));
 
-        fetch('/users/save_preferences/', {
+        return fetch('/users/save_preferences/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -2120,14 +2190,55 @@
             },
             body: data
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server responded with status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             console.log('Preferences saved to backend:', data);
+
+            // Verify the saved values match what we sent
+            if (data.status === 'success') {
+                console.log('Backend confirmed preferences were saved successfully');
+
+                // Check if the values were saved correctly
+                if (isAssistantWindowOpen !== null && isAssistantWindowOpen !== undefined &&
+                    data.is_assistant_window_open !== isAssistantWindowOpen) {
+                    console.warn('Backend saved different is_assistant_window_open value:',
+                                data.is_assistant_window_open, 'vs sent:', isAssistantWindowOpen);
+                }
+
+                if (chatPanelWidth !== null && chatPanelWidth !== undefined &&
+                    data.chat_panel_width !== parseInt(chatPanelWidth, 10)) {
+                    console.warn('Backend saved different chat_panel_width value:',
+                                data.chat_panel_width, 'vs sent:', chatPanelWidth);
+                }
+
+                if (terminalHeight !== null && terminalHeight !== undefined &&
+                    data.terminal_height !== parseInt(terminalHeight, 10)) {
+                    console.warn('Backend saved different terminal_height value:',
+                                data.terminal_height, 'vs sent:', terminalHeight);
+                }
+            } else {
+                console.error('Backend reported error saving preferences:', data.message);
+            }
+
+            return data;
         })
         .catch(error => {
             console.error('Error saving preferences to backend:', error);
+            // Show a toast notification for the error
+            if (typeof showToast === 'function') {
+                showToast('Failed to save panel settings: ' + error.message, 'error');
+            }
+            throw error; // Re-throw to allow caller to handle
         });
     }
+
+    // Debounced version of saveUserPreferencesToBackend
+    const debouncedSaveUserPreferencesToBackend = debounce(saveUserPreferencesToBackend, 500);
 
     // Restore panel states
     function restorePanelStates() {
@@ -2146,8 +2257,15 @@
         const chatPanel = document.getElementById('chat-panel');
         const terminalArea = document.getElementById('terminal-area');
 
-        if (!chatPanel) console.error('Chat panel element not found!');
-        if (!terminalArea) console.error('Terminal area element not found!');
+        if (!chatPanel) {
+            console.error('Chat panel element not found!');
+            return;
+        }
+
+        if (!terminalArea) {
+            console.error('Terminal area element not found!');
+            return;
+        }
 
         // Get backend values (these will be used if sessionStorage doesn't have values)
         const backendChatPanelWidth = {{ user_profile.chat_panel_width }};
@@ -2167,14 +2285,30 @@
 
         // If we have sessionStorage values, use those instead
         if (chatPanelStateStr) {
-            const chatPanelState = JSON.parse(chatPanelStateStr);
-            if (chatPanelState.width) {
-                chatPanelWidth = chatPanelState.width;
+            try {
+                const chatPanelState = JSON.parse(chatPanelStateStr);
+
+                // Validate width value
+                if (chatPanelState.width) {
+                    const parsedWidth = parseInt(chatPanelState.width, 10);
+                    if (!isNaN(parsedWidth) && parsedWidth > 0) {
+                        chatPanelWidth = parsedWidth;
+                    } else {
+                        console.warn('Invalid chat panel width in sessionStorage:', chatPanelState.width);
+                    }
+                }
+
+                // Validate isOpen value
+                if (typeof chatPanelState.isOpen === 'boolean') {
+                    isAssistantWindowOpen = chatPanelState.isOpen;
+                }
+
+                console.log('Chat panel state restored from sessionStorage:', chatPanelState);
+            } catch (error) {
+                console.error('Error parsing chat panel state from sessionStorage:', error);
+                // Clear invalid sessionStorage data
+                sessionStorage.removeItem('chatPanelState');
             }
-            if (typeof chatPanelState.isOpen === 'boolean') {
-                isAssistantWindowOpen = chatPanelState.isOpen;
-            }
-            console.log('Chat panel state restored from sessionStorage:', chatPanelState);
         } else {
             console.log('Chat panel state restored from backend:', {
                 width: chatPanelWidth,
@@ -2183,11 +2317,25 @@
         }
 
         if (terminalStateStr) {
-            const terminalState = JSON.parse(terminalStateStr);
-            if (terminalState.height) {
-                terminalHeight = terminalState.height;
+            try {
+                const terminalState = JSON.parse(terminalStateStr);
+
+                // Validate height value
+                if (terminalState.height) {
+                    const parsedHeight = parseInt(terminalState.height, 10);
+                    if (!isNaN(parsedHeight) && parsedHeight > 0) {
+                        terminalHeight = parsedHeight;
+                    } else {
+                        console.warn('Invalid terminal height in sessionStorage:', terminalState.height);
+                    }
+                }
+
+                console.log('Terminal state restored from sessionStorage:', terminalState);
+            } catch (error) {
+                console.error('Error parsing terminal state from sessionStorage:', error);
+                // Clear invalid sessionStorage data
+                sessionStorage.removeItem('terminalState');
             }
-            console.log('Terminal state restored from sessionStorage:', terminalState);
         } else {
             console.log('Terminal state restored from backend:', {
                 height: terminalHeight
@@ -2197,55 +2345,74 @@
         // Apply the chat panel state
         console.log('Applying chat panel state:', { isAssistantWindowOpen, chatPanelWidth });
 
-        if (chatPanel) {
-            if (isAssistantWindowOpen) {
-                console.log('Opening chat panel with width:', chatPanelWidth);
-                chatPanel.classList.remove('collapsed');
-                chatPanel.style.width = `${chatPanelWidth}px`;
-                chatPanel.style.maxWidth = `${chatPanelWidth}px`;
-                chatPanel.style.minWidth = `${chatPanelWidth}px`;
+        // Apply the chat panel state with a slight delay to ensure DOM is ready
+        setTimeout(() => {
+            if (chatPanel) {
+                if (isAssistantWindowOpen) {
+                    console.log('Opening chat panel with width:', chatPanelWidth);
 
-                // Update the toggle button icon
-                const chatToggleButton = document.getElementById('chat-toggle-btn');
-                if (chatToggleButton) {
-                    chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
-                }
-            } else {
-                console.log('Closing chat panel');
-                chatPanel.classList.add('collapsed');
-                chatPanel.style.width = '0';
-                chatPanel.style.maxWidth = '0';
-                chatPanel.style.minWidth = '0';
+                    // First remove the collapsed class
+                    chatPanel.classList.remove('collapsed');
 
-                // Update the toggle button icon
-                const chatToggleButton = document.getElementById('chat-toggle-btn');
-                if (chatToggleButton) {
-                    chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
+                    // Force a reflow to ensure the browser processes the class change
+                    void chatPanel.offsetWidth;
+
+                    // Set the width explicitly
+                    chatPanel.style.width = `${chatPanelWidth}px`;
+                    chatPanel.style.maxWidth = `${chatPanelWidth}px`;
+                    chatPanel.style.minWidth = `${chatPanelWidth}px`;
+
+                    // Update the toggle button icon
+                    const chatToggleButton = document.getElementById('chat-toggle-btn');
+                    if (chatToggleButton) {
+                        chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
+                    }
+                } else {
+                    console.log('Closing chat panel');
+
+                    // First add the collapsed class
+                    chatPanel.classList.add('collapsed');
+
+                    // Force a reflow to ensure the browser processes the class change
+                    void chatPanel.offsetWidth;
+
+                    // Set the width explicitly
+                    chatPanel.style.width = '0';
+                    chatPanel.style.maxWidth = '0';
+                    chatPanel.style.minWidth = '0';
+
+                    // Update the toggle button icon
+                    const chatToggleButton = document.getElementById('chat-toggle-btn');
+                    if (chatToggleButton) {
+                        chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
+                    }
                 }
+
+                // Log the actual applied state
+                console.log('Chat panel after applying state:', {
+                    width: chatPanel.style.width,
+                    maxWidth: chatPanel.style.maxWidth,
+                    minWidth: chatPanel.style.minWidth,
+                    isCollapsed: chatPanel.classList.contains('collapsed')
+                });
             }
 
-            // Log the actual applied state
-            console.log('Chat panel after applying state:', {
-                width: chatPanel.style.width,
-                maxWidth: chatPanel.style.maxWidth,
-                minWidth: chatPanel.style.minWidth,
-                isCollapsed: chatPanel.classList.contains('collapsed')
-            });
-        }
+            // Apply the terminal state
+            console.log('Applying terminal height:', terminalHeight);
+            if (terminalArea && terminalHeight) {
+                terminalArea.style.height = `${terminalHeight}px`;
+                console.log('Terminal height after applying:', terminalArea.style.height);
+            }
 
-        // Apply the terminal state
-        console.log('Applying terminal height:', terminalHeight);
-        if (terminalArea && terminalHeight) {
-            terminalArea.style.height = `${terminalHeight}px`;
-            console.log('Terminal height after applying:', terminalArea.style.height);
-        }
-
-        console.log('=== PANEL STATES RESTORED ===');
+            console.log('=== PANEL STATES RESTORED ===');
+        }, 100);
     }
 
     // Open file in editor
     function openFile(path) {
-        // Save current panel states before navigating
+        // Save current panel states to sessionStorage before navigating
+        // We use the non-debounced version here because we need it to execute immediately
+        // before navigation
         savePanelStates();
 
         // Navigate to the file
@@ -2360,8 +2527,12 @@
             document.removeEventListener('mouseup', handleMouseUp);
             document.body.style.userSelect = '';
 
-            // Save the new panel state
-            savePanelStates();
+            // Get the current terminal height
+            const currentHeight = parseInt(window.getComputedStyle(terminalArea).height, 10);
+            console.log('Terminal resized to height:', currentHeight);
+
+            // Save the new panel state using the debounced function
+            debouncedSavePanelStates();
         }
 
         // Save file button
@@ -4218,12 +4389,12 @@
                     chatToggleButton.innerHTML = '<i class="bi bi-chevron-right"></i>';
                 }
 
-                // Update the state and save preferences
+                // Update the state
                 isAssistantWindowOpen = true;
-                saveUserPreferences();
 
-                // Save panel states to session storage
-                savePanelStates();
+                // Save preferences and panel states using debounced functions
+                debouncedSaveUserPreferencesToBackend(isAssistantWindowOpen, isReasoningModeOn, chatPanelWidth, null);
+                debouncedSavePanelStates();
                 console.log('Chat panel opened successfully');
 
                 // Load chat history if it exists
@@ -4268,12 +4439,12 @@
                     chatToggleButton.innerHTML = '<i class="bi bi-chat-dots"></i>';
                 }
 
-                // Update the state and save preferences
+                // Update the state
                 isAssistantWindowOpen = false;
-                saveUserPreferences();
 
-                // Save panel states to session storage
-                savePanelStates();
+                // Save preferences and panel states using debounced functions
+                debouncedSaveUserPreferencesToBackend(isAssistantWindowOpen, isReasoningModeOn, chatPanelWidth, null);
+                debouncedSavePanelStates();
                 console.log('Chat panel closed successfully');
             }, 50);
         }
@@ -4385,11 +4556,12 @@
         function saveUserPreferences() {
             console.log('Saving user preferences:', {
                 isAssistantWindowOpen,
-                isReasoningModeOn
+                isReasoningModeOn,
+                chatPanelWidth
             });
 
-            // Use the new function to save preferences to backend
-            saveUserPreferencesToBackend(isAssistantWindowOpen, isReasoningModeOn, chatPanelWidth, null);
+            // Use the debounced function to save preferences to backend
+            debouncedSaveUserPreferencesToBackend(isAssistantWindowOpen, isReasoningModeOn, chatPanelWidth, null);
         }
 
         // Listen for chat panel toggle button click
@@ -4465,8 +4637,18 @@
                     document.body.style.cursor = '';
                     document.body.style.userSelect = '';
 
-                    // Save the new panel state
-                    savePanelStates();
+                    // Get the current width from computed style
+                    const computedStyle = window.getComputedStyle(chatPanel);
+                    const currentWidth = parseInt(computedStyle.width, 10);
+                    console.log('Chat panel resized to width:', currentWidth);
+
+                    // Update the chatPanelWidth variable
+                    if (!isNaN(currentWidth) && currentWidth > 0) {
+                        chatPanelWidth = currentWidth;
+                    }
+
+                    // Save the new panel state using the debounced function
+                    debouncedSavePanelStates();
                 }
             };
 
@@ -4479,6 +4661,17 @@
             window.addEventListener('beforeunload', () => {
                 document.removeEventListener('mousemove', resize);
                 document.removeEventListener('mouseup', stopResize);
+
+                // Save panel states one last time before unloading
+                savePanelStates();
+            });
+
+            // Also save panel states when the window is resized
+            window.addEventListener('resize', () => {
+                // Only save if the chat panel is open
+                if (!chatPanel.classList.contains('collapsed')) {
+                    debouncedSavePanelStates();
+                }
             });
         }
     });
