@@ -2056,7 +2056,9 @@
         const chatPanel = document.getElementById('chat-panel');
         if (!chatPanel) {
             console.error('Chat panel element not found when saving state');
-            return;
+            return {
+                error: 'Chat panel element not found'
+            };
         }
 
         const isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
@@ -2075,6 +2077,11 @@
                 chatPanelWidth = computedWidth;
                 // Update the global variable
                 window.chatPanelWidth = computedWidth;
+
+                // Also update the DOM element directly to ensure it's applied
+                chatPanel.style.width = `${computedWidth}px`;
+                chatPanel.style.maxWidth = `${computedWidth}px`;
+                chatPanel.style.minWidth = `${computedWidth}px`;
             } else {
                 // Fallback to inline style if computed style is invalid
                 const inlineWidth = parseInt(chatPanel.style.width || '350', 10);
@@ -2090,7 +2097,11 @@
         const terminalArea = document.getElementById('terminal-area');
         if (!terminalArea) {
             console.error('Terminal area element not found when saving state');
-            return;
+            return {
+                isAssistantWindowOpen,
+                chatPanelWidth,
+                error: 'Terminal area element not found'
+            };
         }
 
         // First check if we have a global variable with the height
@@ -2105,6 +2116,9 @@
             terminalHeight = computedHeight;
             // Update the global variable
             window.terminalHeight = computedHeight;
+
+            // Also update the DOM element directly to ensure it's applied
+            terminalArea.style.height = `${computedHeight}px`;
         } else {
             // Fallback to inline style if computed style is invalid
             const inlineHeight = parseInt(terminalArea.style.height || '150', 10);
@@ -2112,8 +2126,14 @@
                 terminalHeight = inlineHeight;
                 // Update the global variable
                 window.terminalHeight = inlineHeight;
+
+                // Also update the DOM element directly to ensure it's applied
+                terminalArea.style.height = `${inlineHeight}px`;
             }
         }
+
+        // Update global variables
+        window.isAssistantWindowOpen = isAssistantWindowOpen;
 
         // Log the values we're about to save
         console.log('Saving panel states with values:', {
@@ -2123,22 +2143,26 @@
         });
 
         // Save states to sessionStorage for immediate use
-        sessionStorage.setItem('chatPanelState', JSON.stringify({
+        const chatPanelState = {
             isOpen: isAssistantWindowOpen,
             width: chatPanelWidth
-        }));
+        };
 
-        sessionStorage.setItem('terminalState', JSON.stringify({
+        const terminalState = {
             height: terminalHeight
-        }));
+        };
 
-        console.log('Panel states saved to sessionStorage:', {
-            chatPanel: { isOpen: isAssistantWindowOpen, width: chatPanelWidth },
-            terminal: { height: terminalHeight }
-        });
+        try {
+            sessionStorage.setItem('chatPanelState', JSON.stringify(chatPanelState));
+            sessionStorage.setItem('terminalState', JSON.stringify(terminalState));
 
-        // Also save to backend for persistence across sessions
-        saveUserPreferencesToBackend(isAssistantWindowOpen, null, chatPanelWidth, terminalHeight);
+            console.log('Panel states saved to sessionStorage:', {
+                chatPanel: chatPanelState,
+                terminal: terminalState
+            });
+        } catch (error) {
+            console.error('Error saving panel states to sessionStorage:', error);
+        }
 
         // Return the values we saved (useful for debugging)
         return {
@@ -2169,6 +2193,51 @@
         if (!csrfToken) {
             console.error('Could not find CSRF token');
             return Promise.reject(new Error('CSRF token not found'));
+        }
+
+        // If any parameters are null/undefined, try to get them from global variables
+        if (isAssistantWindowOpen === null || isAssistantWindowOpen === undefined) {
+            if (window.isAssistantWindowOpen !== undefined) {
+                isAssistantWindowOpen = window.isAssistantWindowOpen;
+            } else {
+                // Try to determine from DOM
+                const chatPanel = document.getElementById('chat-panel');
+                if (chatPanel) {
+                    isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
+                }
+            }
+        }
+
+        if (isReasoningModeOn === null || isReasoningModeOn === undefined) {
+            if (window.isReasoningModeOn !== undefined) {
+                isReasoningModeOn = window.isReasoningModeOn;
+            }
+        }
+
+        if (chatPanelWidth === null || chatPanelWidth === undefined) {
+            if (window.chatPanelWidth !== undefined) {
+                chatPanelWidth = window.chatPanelWidth;
+            } else {
+                // Try to determine from DOM
+                const chatPanel = document.getElementById('chat-panel');
+                if (chatPanel && !chatPanel.classList.contains('collapsed')) {
+                    const computedStyle = window.getComputedStyle(chatPanel);
+                    chatPanelWidth = parseInt(computedStyle.width, 10);
+                }
+            }
+        }
+
+        if (terminalHeight === null || terminalHeight === undefined) {
+            if (window.terminalHeight !== undefined) {
+                terminalHeight = window.terminalHeight;
+            } else {
+                // Try to determine from DOM
+                const terminalArea = document.getElementById('terminal-area');
+                if (terminalArea) {
+                    const computedStyle = window.getComputedStyle(terminalArea);
+                    terminalHeight = parseInt(computedStyle.height, 10);
+                }
+            }
         }
 
         // Validate the values before sending
@@ -2208,6 +2277,12 @@
 
         if (terminalHeight !== null && terminalHeight !== undefined) {
             data.append('terminal_height', terminalHeight);
+        }
+
+        // If we have no data to send, return early
+        if (data.toString() === '') {
+            console.log('No preferences to save to backend');
+            return Promise.resolve({ status: 'success', message: 'No preferences to save' });
         }
 
         console.log('Saving user preferences to backend:', Object.fromEntries(data));
@@ -2250,6 +2325,23 @@
                     data.terminal_height !== parseInt(terminalHeight, 10)) {
                     console.warn('Backend saved different terminal_height value:',
                                 data.terminal_height, 'vs sent:', terminalHeight);
+                }
+
+                // Update global variables with confirmed values from backend
+                if (data.is_assistant_window_open !== undefined) {
+                    window.isAssistantWindowOpen = data.is_assistant_window_open;
+                }
+
+                if (data.is_reasoning_mode_on !== undefined) {
+                    window.isReasoningModeOn = data.is_reasoning_mode_on;
+                }
+
+                if (data.chat_panel_width !== undefined) {
+                    window.chatPanelWidth = data.chat_panel_width;
+                }
+
+                if (data.terminal_height !== undefined) {
+                    window.terminalHeight = data.terminal_height;
                 }
             } else {
                 console.error('Backend reported error saving preferences:', data.message);
@@ -2464,10 +2556,45 @@
 
     // Open file in editor
     function openFile(path) {
+        // Get current panel states
+        const chatPanel = document.getElementById('chat-panel');
+        const terminalArea = document.getElementById('terminal-area');
+
+        // Get and update the global variables with current values
+        if (chatPanel) {
+            const isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
+            window.isAssistantWindowOpen = isAssistantWindowOpen;
+
+            if (isAssistantWindowOpen) {
+                const computedStyle = window.getComputedStyle(chatPanel);
+                const currentWidth = parseInt(computedStyle.width, 10);
+                if (!isNaN(currentWidth) && currentWidth > 0) {
+                    window.chatPanelWidth = currentWidth;
+                }
+            }
+        }
+
+        if (terminalArea) {
+            const computedStyle = window.getComputedStyle(terminalArea);
+            const currentHeight = parseInt(computedStyle.height, 10);
+            if (!isNaN(currentHeight) && currentHeight > 0) {
+                window.terminalHeight = currentHeight;
+            }
+        }
+
         // Save current panel states to sessionStorage before navigating
         // We use the non-debounced version here because we need it to execute immediately
         // before navigation
-        savePanelStates();
+        const savedState = savePanelStates();
+        console.log('Saving panel states before navigation:', savedState);
+
+        // Also save to backend to ensure persistence
+        saveUserPreferencesToBackend(
+            window.isAssistantWindowOpen,
+            window.isReasoningModeOn,
+            window.chatPanelWidth,
+            window.terminalHeight
+        );
 
         // Navigate to the file
         window.location.href = "{% url 'code_editor' project.pk %}?file=" + encodeURIComponent(path);
@@ -2588,6 +2715,8 @@
         }
 
         function handleMouseUp() {
+            if (!isResizing) return;
+
             isResizing = false;
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
@@ -2601,11 +2730,27 @@
             if (!isNaN(currentHeight) && currentHeight > 0) {
                 // Update the global variable
                 window.terminalHeight = currentHeight;
+
+                // Also update the DOM element directly to ensure it's applied
+                terminalArea.style.height = `${currentHeight}px`;
+
+                // Force a reflow to ensure the browser processes the style change
+                void terminalArea.offsetWidth;
             }
 
             // Save the new panel state immediately (not debounced)
             // This ensures the state is saved right when resizing stops
-            savePanelStates();
+            const savedState = savePanelStates();
+            console.log('Terminal resize complete - saved state:', savedState);
+
+            // Also save directly to backend to ensure persistence
+            saveUserPreferencesToBackend(null, null, null, currentHeight)
+                .then(response => {
+                    console.log('Terminal height saved to backend:', response);
+                })
+                .catch(error => {
+                    console.error('Error saving terminal height to backend:', error);
+                });
         }
 
         // Save file button
@@ -4391,9 +4536,49 @@
 
     // Add a global event listener to save panel states when the page is unloaded
     window.addEventListener('beforeunload', function() {
+        // Get current panel states directly from DOM
+        const chatPanel = document.getElementById('chat-panel');
+        const terminalArea = document.getElementById('terminal-area');
+
+        if (chatPanel) {
+            const isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
+            window.isAssistantWindowOpen = isAssistantWindowOpen;
+
+            if (isAssistantWindowOpen) {
+                const computedStyle = window.getComputedStyle(chatPanel);
+                const currentWidth = parseInt(computedStyle.width, 10);
+                if (!isNaN(currentWidth) && currentWidth > 0) {
+                    window.chatPanelWidth = currentWidth;
+                }
+            }
+        }
+
+        if (terminalArea) {
+            const computedStyle = window.getComputedStyle(terminalArea);
+            const currentHeight = parseInt(computedStyle.height, 10);
+            if (!isNaN(currentHeight) && currentHeight > 0) {
+                window.terminalHeight = currentHeight;
+            }
+        }
+
         // Save panel states one last time before unloading
         // Use the non-debounced version to ensure it executes immediately
-        savePanelStates();
+        const savedState = savePanelStates();
+        console.log('Saving panel states before unload:', savedState);
+
+        // Use navigator.sendBeacon for more reliable data sending during page unload
+        const csrfToken = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value || getCsrfToken();
+        if (csrfToken) {
+            const data = new FormData();
+            data.append('is_assistant_window_open', window.isAssistantWindowOpen);
+            data.append('is_reasoning_mode_on', window.isReasoningModeOn);
+            data.append('chat_panel_width', window.chatPanelWidth);
+            data.append('terminal_height', window.terminalHeight);
+            data.append('csrfmiddlewaretoken', csrfToken);
+
+            // Use sendBeacon which is designed for sending analytics data during page unload
+            navigator.sendBeacon('/users/save_preferences/', data);
+        }
     });
 
     // User preference state management
@@ -4730,32 +4915,47 @@
 
             // Function to stop resizing
             const stopResize = () => {
-                if (isResizing) {
-                    isResizing = false;
-                    chatResizeHandle.classList.remove('resizing');
-                    document.body.style.cursor = '';
-                    document.body.style.userSelect = '';
+                if (!isResizing) return;
 
-                    // Get the current width from computed style
-                    const computedStyle = window.getComputedStyle(chatPanel);
-                    const currentWidth = parseInt(computedStyle.width, 10);
-                    console.log('Chat panel resized to width:', currentWidth);
+                isResizing = false;
+                chatResizeHandle.classList.remove('resizing');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
 
-                    // Update the chatPanelWidth variable
-                    if (!isNaN(currentWidth) && currentWidth > 0) {
-                        chatPanelWidth = currentWidth;
+                // Get the current width from computed style
+                const computedStyle = window.getComputedStyle(chatPanel);
+                const currentWidth = parseInt(computedStyle.width, 10);
+                console.log('Chat panel resized to width:', currentWidth);
 
-                        // Also update the global variable to ensure it's available everywhere
-                        window.chatPanelWidth = currentWidth;
-                    }
+                // Update the chatPanelWidth variable
+                if (!isNaN(currentWidth) && currentWidth > 0) {
+                    chatPanelWidth = currentWidth;
 
-                    // Save the new panel state immediately (not debounced)
-                    // This ensures the state is saved right when resizing stops
-                    savePanelStates();
+                    // Also update the global variable to ensure it's available everywhere
+                    window.chatPanelWidth = currentWidth;
 
-                    // Also save directly to backend to ensure persistence
-                    saveUserPreferencesToBackend(isAssistantWindowOpen, isReasoningModeOn, chatPanelWidth, null);
+                    // Also update the DOM element directly to ensure it's applied
+                    chatPanel.style.width = `${currentWidth}px`;
+                    chatPanel.style.maxWidth = `${currentWidth}px`;
+                    chatPanel.style.minWidth = `${currentWidth}px`;
+
+                    // Force a reflow to ensure the browser processes the style change
+                    void chatPanel.offsetWidth;
                 }
+
+                // Save the new panel state immediately (not debounced)
+                // This ensures the state is saved right when resizing stops
+                const savedState = savePanelStates();
+                console.log('Chat panel resize complete - saved state:', savedState);
+
+                // Also save directly to backend to ensure persistence
+                saveUserPreferencesToBackend(isAssistantWindowOpen, isReasoningModeOn, chatPanelWidth, null)
+                    .then(response => {
+                        console.log('Chat panel width saved to backend:', response);
+                    })
+                    .catch(error => {
+                        console.error('Error saving chat panel width to backend:', error);
+                    });
             };
 
             // Add event listeners
