@@ -2061,18 +2061,28 @@
 
         const isAssistantWindowOpen = !chatPanel.classList.contains('collapsed');
 
-        // Use getComputedStyle to get the actual width
-        let chatPanelWidth = 350; // Default value
+        // First check if we have a global variable with the width
+        let chatPanelWidth = window.chatPanelWidth || 350;
+
+        // If the panel is open, verify the width from the DOM
         if (isAssistantWindowOpen) {
+            // Use getComputedStyle to get the actual width
             const computedStyle = window.getComputedStyle(chatPanel);
             const computedWidth = parseInt(computedStyle.width, 10);
 
             // Only use the computed width if it's a valid number and not 0
             if (!isNaN(computedWidth) && computedWidth > 0) {
                 chatPanelWidth = computedWidth;
+                // Update the global variable
+                window.chatPanelWidth = computedWidth;
             } else {
                 // Fallback to inline style if computed style is invalid
-                chatPanelWidth = parseInt(chatPanel.style.width || '350', 10);
+                const inlineWidth = parseInt(chatPanel.style.width || '350', 10);
+                if (!isNaN(inlineWidth) && inlineWidth > 0) {
+                    chatPanelWidth = inlineWidth;
+                    // Update the global variable
+                    window.chatPanelWidth = inlineWidth;
+                }
             }
         }
 
@@ -2083,13 +2093,26 @@
             return;
         }
 
-        // Use getComputedStyle to get the actual height
-        const terminalComputedStyle = window.getComputedStyle(terminalArea);
-        let terminalHeight = parseInt(terminalComputedStyle.height, 10);
+        // First check if we have a global variable with the height
+        let terminalHeight = window.terminalHeight || 150;
 
-        // Validate terminal height
-        if (isNaN(terminalHeight) || terminalHeight <= 0) {
-            terminalHeight = 150; // Default value
+        // Verify the height from the DOM
+        const terminalComputedStyle = window.getComputedStyle(terminalArea);
+        const computedHeight = parseInt(terminalComputedStyle.height, 10);
+
+        // Only use the computed height if it's a valid number and not 0
+        if (!isNaN(computedHeight) && computedHeight > 0) {
+            terminalHeight = computedHeight;
+            // Update the global variable
+            window.terminalHeight = computedHeight;
+        } else {
+            // Fallback to inline style if computed style is invalid
+            const inlineHeight = parseInt(terminalArea.style.height || '150', 10);
+            if (!isNaN(inlineHeight) && inlineHeight > 0) {
+                terminalHeight = inlineHeight;
+                // Update the global variable
+                window.terminalHeight = inlineHeight;
+            }
         }
 
         // Log the values we're about to save
@@ -2116,6 +2139,13 @@
 
         // Also save to backend for persistence across sessions
         saveUserPreferencesToBackend(isAssistantWindowOpen, null, chatPanelWidth, terminalHeight);
+
+        // Return the values we saved (useful for debugging)
+        return {
+            isAssistantWindowOpen,
+            chatPanelWidth,
+            terminalHeight
+        };
     }
 
     // Debounced version of savePanelStates to prevent excessive calls
@@ -2342,6 +2372,11 @@
             });
         }
 
+        // Set global variables to ensure they're available throughout the application
+        window.chatPanelWidth = chatPanelWidth;
+        window.terminalHeight = terminalHeight;
+        window.isAssistantWindowOpen = isAssistantWindowOpen;
+
         // Apply the chat panel state
         console.log('Applying chat panel state:', { isAssistantWindowOpen, chatPanelWidth });
 
@@ -2402,10 +2437,29 @@
             if (terminalArea && terminalHeight) {
                 terminalArea.style.height = `${terminalHeight}px`;
                 console.log('Terminal height after applying:', terminalArea.style.height);
+
+                // Verify the height was applied correctly
+                setTimeout(() => {
+                    const appliedHeight = parseInt(window.getComputedStyle(terminalArea).height, 10);
+                    console.log('Verified terminal height after applying:', appliedHeight);
+
+                    // If the height wasn't applied correctly, try again
+                    if (appliedHeight !== terminalHeight) {
+                        console.warn('Terminal height was not applied correctly, trying again');
+                        terminalArea.style.height = `${terminalHeight}px`;
+                    }
+                }, 50);
             }
 
             console.log('=== PANEL STATES RESTORED ===');
         }, 100);
+
+        // Return the values we restored (useful for debugging)
+        return {
+            isAssistantWindowOpen,
+            chatPanelWidth,
+            terminalHeight
+        };
     }
 
     // Open file in editor
@@ -2481,14 +2535,26 @@
         const terminalArea = document.getElementById('terminal-area');
         const terminalResizeHandle = document.getElementById('terminal-resize-handle');
 
-        // Get terminal height from backend
-        const terminalHeight = {{ user_profile.terminal_height }};
-        console.log('Setting initial terminal height from backend:', terminalHeight);
+        // Get terminal height from global variable (which was set during restorePanelStates)
+        const terminalHeight = window.terminalHeight || {{ user_profile.terminal_height }};
+        console.log('Setting initial terminal height:', terminalHeight);
 
         // Apply terminal height
         if (terminalArea && terminalHeight) {
             terminalArea.style.height = `${terminalHeight}px`;
             console.log('Applied terminal height:', terminalArea.style.height);
+
+            // Verify the height was applied correctly
+            setTimeout(() => {
+                const appliedHeight = parseInt(window.getComputedStyle(terminalArea).height, 10);
+                console.log('Verified terminal height after applying:', appliedHeight);
+
+                // If the height wasn't applied correctly, try again
+                if (appliedHeight !== terminalHeight) {
+                    console.warn('Terminal height was not applied correctly, trying again');
+                    terminalArea.style.height = `${terminalHeight}px`;
+                }
+            }, 50);
         }
 
         // Terminal resize functionality
@@ -2531,8 +2597,15 @@
             const currentHeight = parseInt(window.getComputedStyle(terminalArea).height, 10);
             console.log('Terminal resized to height:', currentHeight);
 
-            // Save the new panel state using the debounced function
-            debouncedSavePanelStates();
+            // Save the new height to the global variable
+            if (!isNaN(currentHeight) && currentHeight > 0) {
+                // Update the global variable
+                window.terminalHeight = currentHeight;
+            }
+
+            // Save the new panel state immediately (not debounced)
+            // This ensures the state is saved right when resizing stops
+            savePanelStates();
         }
 
         // Save file button
@@ -4310,16 +4383,29 @@
         }
     });
 
+    // Initialize global variables for panel states
+    window.chatPanelWidth = {{ user_profile.chat_panel_width }};
+    window.terminalHeight = {{ user_profile.terminal_height }};
+    window.isAssistantWindowOpen = {{ user_profile.is_assistant_window_open|lower }};
+    window.isReasoningModeOn = {{ user_profile.is_reasoning_mode_on|lower }};
+
+    // Add a global event listener to save panel states when the page is unloaded
+    window.addEventListener('beforeunload', function() {
+        // Save panel states one last time before unloading
+        // Use the non-debounced version to ensure it executes immediately
+        savePanelStates();
+    });
+
     // User preference state management
     document.addEventListener('DOMContentLoaded', function() {
         console.log('=== DOM CONTENT LOADED ===');
 
-        // Initialize state from user preferences
-        let isAssistantWindowOpen = {{ user_profile.is_assistant_window_open|lower }};
-        let isReasoningModeOn = {{ user_profile.is_reasoning_mode_on|lower }};
-        let chatPanelWidth = {{ user_profile.chat_panel_width }}; // Get from backend
+        // Initialize state from user preferences or global variables
+        let isAssistantWindowOpen = window.isAssistantWindowOpen;
+        let isReasoningModeOn = window.isReasoningModeOn;
+        let chatPanelWidth = window.chatPanelWidth;
 
-        console.log('Initial state from backend:', {
+        console.log('Initial state from backend/globals:', {
             isAssistantWindowOpen,
             isReasoningModeOn,
             chatPanelWidth
@@ -4328,18 +4414,31 @@
         // If we have a saved chat panel width in session storage, use that instead
         const chatPanelStateStr = sessionStorage.getItem('chatPanelState');
         if (chatPanelStateStr) {
-            const chatPanelState = JSON.parse(chatPanelStateStr);
-            console.log('Found chat panel state in sessionStorage:', chatPanelState);
+            try {
+                const chatPanelState = JSON.parse(chatPanelStateStr);
+                console.log('Found chat panel state in sessionStorage:', chatPanelState);
 
-            if (chatPanelState.width) {
-                chatPanelWidth = chatPanelState.width;
-                console.log('Using width from sessionStorage:', chatPanelWidth);
-            }
+                if (chatPanelState.width) {
+                    const parsedWidth = parseInt(chatPanelState.width, 10);
+                    if (!isNaN(parsedWidth) && parsedWidth > 0) {
+                        chatPanelWidth = parsedWidth;
+                        // Update the global variable
+                        window.chatPanelWidth = parsedWidth;
+                        console.log('Using width from sessionStorage:', chatPanelWidth);
+                    }
+                }
 
-            // Override the assistant window state if we have it in session storage
-            if (typeof chatPanelState.isOpen === 'boolean') {
-                isAssistantWindowOpen = chatPanelState.isOpen;
-                console.log('Using isOpen from sessionStorage:', isAssistantWindowOpen);
+                // Override the assistant window state if we have it in session storage
+                if (typeof chatPanelState.isOpen === 'boolean') {
+                    isAssistantWindowOpen = chatPanelState.isOpen;
+                    // Update the global variable
+                    window.isAssistantWindowOpen = chatPanelState.isOpen;
+                    console.log('Using isOpen from sessionStorage:', isAssistantWindowOpen);
+                }
+            } catch (error) {
+                console.error('Error parsing chat panel state from sessionStorage:', error);
+                // Clear invalid sessionStorage data
+                sessionStorage.removeItem('chatPanelState');
             }
         }
 
@@ -4645,10 +4744,17 @@
                     // Update the chatPanelWidth variable
                     if (!isNaN(currentWidth) && currentWidth > 0) {
                         chatPanelWidth = currentWidth;
+
+                        // Also update the global variable to ensure it's available everywhere
+                        window.chatPanelWidth = currentWidth;
                     }
 
-                    // Save the new panel state using the debounced function
-                    debouncedSavePanelStates();
+                    // Save the new panel state immediately (not debounced)
+                    // This ensures the state is saved right when resizing stops
+                    savePanelStates();
+
+                    // Also save directly to backend to ensure persistence
+                    saveUserPreferencesToBackend(isAssistantWindowOpen, isReasoningModeOn, chatPanelWidth, null);
                 }
             };
 
